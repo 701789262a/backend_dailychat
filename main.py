@@ -6,7 +6,7 @@ from stage2_voic_iden import VoiceIdentification
 from stage1_voic_diar import VoiceDiarization
 from dbftpinterface import DbFtpInterface
 
-translator = VoiceDiarization('base', 'cuda')
+translator = VoiceDiarization('base', 'cpu')
 with open ('config.yaml','r') as yy:
     config = yaml.load(yy,Loader=SafeLoader)
 print(datetime.datetime.now())
@@ -14,8 +14,8 @@ subclips_name = translator.clip_transcribe('gianmarco.wav')
 print(datetime.datetime.now())
 
 middle_to_backend = DbFtpInterface()
-middle_to_backend.db_login(config['db']['host'], config['db']['user'], config['db']['pass'])
-middle_to_backend.ftp_login(config['ftp']['host'], config['ftp']['user'], config['ftp']['pass'])
+middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'], config['auth']['db']['pass'])
+middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'], config['auth']['ftp']['pass'])
 
 identificator = VoiceIdentification(middle_to_backend,0.25)
 
