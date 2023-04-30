@@ -1,0 +1,10 @@
+librosa
+torch
+matplotlib
+seaborn
+whisper
+pydub
+stable-ts
+speechbrain
+mysql.connector
+ffmpeg-python
