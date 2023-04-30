@@ -1,24 +1,14 @@
 import datetime
-import json
 import yaml
-import librosa
-import numpy as np
-import requests
-import torch
-import matplotlib.pyplot as plt
+from yaml import SafeLoader
 
-from matplotlib import cm
-import seaborn as sns
-
-import whisper
-from pydub import AudioSegment
-from stable_whisper import modify_model, load_model, load_result
 from stage2_voic_iden import VoiceIdentification
 from stage1_voic_diar import VoiceDiarization
 from dbftpinterface import DbFtpInterface
 
 translator = VoiceDiarization('base', 'cuda')
-config = yaml.load(open('config.yaml','r').read())
+with open ('config.yaml','r') as yy:
+    config = yaml.load(yy,Loader=SafeLoader)
 print(datetime.datetime.now())
 subclips_name = translator.clip_transcribe('gianmarco.wav')
 print(datetime.datetime.now())
