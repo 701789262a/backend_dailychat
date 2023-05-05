@@ -6,5 +6,5 @@ whisper
 pydub
 stable-ts
 speechbrain
-mysql.connector
+mysql-connector-python
 ffmpeg-python

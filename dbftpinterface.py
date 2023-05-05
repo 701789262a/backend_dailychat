@@ -14,12 +14,35 @@ class DbFtpInterface:
         self.cursor = None
         self.mysql = None
 
-    def db_login(self, mysql_server, mysql_user, mysql_password)-> None:
+    def db_login(self, mysql_server, mysql_user, mysql_password) -> None:
+        """Logins into database and creates an object to interact with.
+
+        Arguments
+        ---------
+        mysql_server : str
+            IP Address for database.
+        mysql_user : str
+            Username for database.
+        mysql_password : str
+            Password for database.
+        """
         self.mysql = mysql.connector.connect(host=mysql_server, user=mysql_user, password=mysql_password,
                                              database='dba')
         self.cursor = self.mysql.cursor()
 
-    def ftp_login(self, ftp_server, ftp_user, ftp_password)-> None:
+    def ftp_login(self, ftp_server, ftp_user, ftp_password) -> None:
+        """Logins into FTP server and creates an object to interact with.
+
+        Arguments
+        ---------
+        ftp_server : str
+            IP Address for FTP server.
+        ftp_user : str
+            Username for FTP server.
+        ftp_password : str
+            Password for FTP server.
+        """
+
         self.ftp = FTP(host=ftp_server)
         self.ftp.login(user=ftp_user, passwd=ftp_password)
         self.ftp.cwd('subclips')
@@ -56,7 +79,7 @@ class DbFtpInterface:
 
         Arguments
         ---------
-        subclip : tuple
+        subclip : list
             Subclip path in tmp folder to get indexed and segment.
         first_username : int
             User id of the user who recorded the subclip.
@@ -67,7 +90,8 @@ class DbFtpInterface:
         """
         # Getting path from subclip
         path = subclip[0]
-        # printare il path perche non risulta completo il percorso, errore linea 199, sicuramente perche la cartella non e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
+        # printare il path perche non risulta completo il percorso, errore linea 199, sicuramente perche la cartella non
+        # e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
         # Stores the tmp .wav subclip into the FTP server
         self.ftp.storbinary('STOR ' + path + '.wav', open('tmp_audio_files_save/' + path + '.wav', 'rb'))
 
@@ -77,9 +101,10 @@ class DbFtpInterface:
         # Inserts the stored subclip into the db
         handle_single_quote_from = "'"
         handle_single_quote_to = "''"
-        insert_subclip_query = f'INSERT INTO subclips (hash, evaluated_by, first_username, speaker, segment_json) values ' \
-                               f'("{path}", "{ordered_results}",{first_username}, {speaker}, ' \
-                               f"'[{json.dumps(subclip[1]).replace(handle_single_quote_from, handle_single_quote_to)}]')"
+        insert_subclip_query = \
+            f'INSERT INTO subclips (hash, evaluated_by, first_username, speaker, segment_json) values ' \
+            f'("{path}", "{ordered_results}",{first_username}, {speaker}, ' \
+            f"'[{json.dumps(subclip[1]).replace(handle_single_quote_from, handle_single_quote_to)}]')"
 
         print(insert_subclip_query)
         self.cursor.execute(insert_subclip_query)

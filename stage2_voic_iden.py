@@ -1,7 +1,7 @@
+import threading
 from threading import Thread, Semaphore
 import queue
 
-import numpy as np
 import pandas as pd
 from speechbrain.pretrained import SpeakerRecognition
 import warnings
@@ -10,7 +10,7 @@ from typing import List
 
 
 class VoiceIdentification:
-    def __init__(self, backend_interface, threshold):
+    def __init__(self, backend_interface, threshold, device, identification_workers, n_level):
         """Initialization method, selects pretrained model from speechbrain,
         connect to FTP indicated server. Connects to mysql db and Stores the
         threshold for which the identification should return True.
@@ -23,6 +23,12 @@ class VoiceIdentification:
         threshold : float
             Threshold over which a speaker should be considered matched with
             the given subclip.
+        device : str
+            Device where the identification will be performed [cpu, cuda].
+        identification_workers : int
+            Number of workers (thread) to perform the identification process.
+        n_level : int
+            Number o level (batches) to perform the identification on.
 
         """
         self.ftp_semaphore = None
@@ -30,8 +36,9 @@ class VoiceIdentification:
         self.local_score = dict()
         self.verification = SpeakerRecognition.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                                             savedir="pretrained_models/spkrec-ecapa-voxceleb",
-                                                            run_opts={'device': 'cuda'})
-
+                                                            run_opts={'device': device})
+        self.identification_workers = identification_workers
+        self.n_level = n_level
         self.threshold = threshold
         self.backend_interface = backend_interface
         warnings.filterwarnings("ignore")
@@ -44,7 +51,7 @@ class VoiceIdentification:
 
         Arguments
         ---------
-        subclip : tuple
+        subclip : list
             Subclip tuple containing path on which the identification should be
             done and segment.
         user : int
@@ -77,17 +84,19 @@ class VoiceIdentification:
         self.ftp_semaphore = Semaphore(1)
 
         # Working through batch to decrease the amount of subclips needed
-        for batch_number in range(5):
+        for batch_number in range(self.n_level):
 
             # Starting workers and job queue
             self.job_queue = queue.Queue()
             workers = [
-                Thread(target=self.batch_worker, args=(self.job_queue, path,self.ftp_semaphore,))
-                for _ in range(5)
+                Thread(target=self.batch_worker, args=(self.job_queue, path, self.ftp_semaphore,))
+                for _ in range(self.identification_workers)
             ]
 
             # Getting batch job following algorithm calculation
-            registered_speakers_batch = self._get_batch_speaker_priority_on_check(user, np.ones(5))
+            registered_speakers_batch = self._get_batch_speaker_priority_on_check(user, self.local_score)
+
+            print(f"[] Current batch len {len(registered_speakers_batch)}")
 
             # Populating queue with current batch
             for registered_speaker in registered_speakers_batch:
@@ -130,6 +139,8 @@ class VoiceIdentification:
             to signal a stop (queue end).
         path : str
             Path where the subclip to match is stored.
+        semaphore : threading.Semaphore
+            Flag to allow max 1 thread to access the FTP subroutine.
         """
 
         # Getting job from queue.
@@ -139,13 +150,19 @@ class VoiceIdentification:
         if registered_speaker is None:
             return
 
+        print(f"[] Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
+
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore:
             stored_subclip = self.get_subclip_from_ftp(registered_speaker)
 
         # Match between given subclip and pre-recorded subclip
-        score, prediction = self.verification.verify_files(path, stored_subclip)
-        self.local_score[registered_speaker] = score
+        try:
+            score, prediction = self.verification.verify_files(path, stored_subclip)
+            self.local_score[registered_speaker] = score
+        except RuntimeError:
+            print(f"[] Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
+            pass
 
     def get_subclip_from_ftp(self, registered_speaker) -> str:
         """Retrieves pre-recorded sub-clip from FTP server.
@@ -192,15 +209,23 @@ class VoiceIdentification:
         fetch_raw_list_subclips = "SELECT * FROM subclips ORDER BY id DESC"
         db_dataframe = pd.read_sql(fetch_raw_list_subclips, self.backend_interface.mysql)
 
-        # Getting a weightet list with speakers' subclip hash and a starting weight list if not provided.
+        # Getting a weighted list with speakers' subclip hash and a starting weight list if not provided.
         speakers_id = set(db_dataframe['speaker'].tolist())
-        weight_list = np.ones(max(speakers_id) + 1) if weight is None else weight
 
         # Converting the dataframe to a list of file names (indexed under column `hash` as
         # every uploaded subclip is hashed and saved with hash name) and getting the first 5*weight item in
         # database for every speaker.
+        weight_list = WeightListType()
         for i in speakers_id:
-            speaker_selected_hash = db_dataframe.loc[db_dataframe['speaker'] == i].head(5 * int(weight_list[i]))[
+            if len(weight) > 0:
+                weight_list = {}
+            for score in weight:
+                fetch_speaker_for_hash_query = f'SELECT * FROM subclips WHERE hash = "{score}"'
+                speaker_for_hash = \
+                    pd.read_sql(fetch_speaker_for_hash_query, self.backend_interface.mysql)['speaker'].tolist()[0]
+                weight_list[speaker_for_hash] = weight[score]
+            print(f"[] -- Multiplier for {i} is {float(weight_list[i])}")
+            speaker_selected_hash = db_dataframe.loc[db_dataframe['speaker'] == i].head(int(5 * float(weight_list[i])))[
                 'hash'].tolist()
             registered_speakers = registered_speakers + speaker_selected_hash
 
@@ -227,3 +252,11 @@ class VoiceIdentification:
         speaker_id = pd.read_sql(fetch_speaker, self.backend_interface.mysql)['speaker'].tolist()[0]
 
         return speaker_id
+
+
+class WeightListType:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def __getitem__(self, item):
+        return 1

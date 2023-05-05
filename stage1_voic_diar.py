@@ -3,7 +3,7 @@ import hashlib
 import whisper
 from pydub import AudioSegment
 from stable_whisper import modify_model
-from typing import Tuple, List
+from typing import List
 
 
 class VoiceDiarization:
@@ -23,7 +23,7 @@ class VoiceDiarization:
         self.model = whisper.load_model(model, device)
         modify_model(self.model)
 
-    def clip_transcribe(self, clip_path) -> List[Tuple[str, dict]]:
+    def clip_transcribe(self, clip_path) -> List[List]:
         """Transcribes a clip into segments dividing by pause, speaker, punctuation.
         From segments, sub-clips are created dividing the original file into smaller ones
         according to start/end data.
@@ -37,16 +37,14 @@ class VoiceDiarization:
 
         Returns
         -------
-        subclips_hash : list of tuple
+        subclips_hash : list of list
             List of names and segment given to saved subclips
         """
 
         # Calling Whisper model to perform diarization. Model returns a list of "segments"
         # where each segment is a sentence (or less than a sentence) divided by pause,
         # punctuation, or speaker distinction.
-        split_transcription = self.model.transcribe(clip_path, suppress_silence=False, ts_num=16).to_dict()
-
-        print(split_transcription['segments'])
+        split_transcription = self.model.transcribe(clip_path, suppress_silence=False).to_dict()
 
         # Loading clip to perform cuts and create sub-clips
         song = AudioSegment.from_file(clip_path, format="wav")
@@ -67,10 +65,12 @@ class VoiceDiarization:
             # Hash is calculated and cut is saved into temporary folder for successive
             # and immediate use.
             filename = hashlib.sha256(cut.raw_data).hexdigest()
-            print(str(filename))
-            cut.export('tmp_audio_files_save/' + filename + '.wav', format='wav')
-            subclips_hash.append((filename, segment))
+            print(f"[] Hashed as: {str(filename)} | "
+                  f"with text: <<{segment['text']}>> | "
+                  f"start: {str(segment['start'])} | "
+                  f"stop: {str(segment['end'])}")
 
-            print(f"{str(segment['start'])} {segment['text']} ")
+            cut.export('tmp_audio_files_save/' + filename + '.wav', format='wav')
+            subclips_hash.append([filename, segment])
 
         return subclips_hash
