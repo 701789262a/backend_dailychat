@@ -8,3 +8,6 @@ stable-ts
 speechbrain
 mysql-connector-python
 ffmpeg-python
+flask
+firebase_admin
+websockets
