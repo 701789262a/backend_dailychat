@@ -1,33 +1,48 @@
 import asyncio
+import datetime
 import hashlib
+import threading
 
+import flask
 from mainservice import MainService
 
 import websockets
+import os
+from flask import Flask, flash, request, redirect, url_for
+from werkzeug.utils import secure_filename
+UPLOAD_FOLDER = 'httpfiles/'
+app = flask.Flask(__name__)
+app.config["DEBUG"] = True
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-
-async def session(websocket):
+@app.route('/',methods=['POST'])
+def addspeaker():
     print(">>> Connected...")
-    clip_bytes = bytes(await websocket.recv())
+    tmp_file_name = str(int(datetime.datetime.utcnow().timestamp()))
+    with open(f'tmp{tmp_file_name}.wav','wb')as f:
+        request.files['file'].save(f)
 
-    clip_hash = hashlib.sha256(clip_bytes).hexdigest()
-    with open(f'{clip_hash}.wav', 'wb') as f:
-        f.write(clip_bytes)
+    timestamp_at_start=request.values['timestamp'].split('/')[-1].split('.')[0]
+
+    with open(f'{"tmp"+tmp_file_name+".wav"}', 'rb') as f:
+        file_to_hash_binary=f.read()
+        clip_hash = hashlib.sha256(file_to_hash_binary).hexdigest()
+        f.close()
+        with open(f'{clip_hash}.wav','wb') as g:
+            g.write(file_to_hash_binary)
+            g.close()
     print(f">>> Passed to threaded")
-    await dedicated_thread_connection(websocket, clip_hash)
+
+    threading.Thread(target=dedicated_thread_connection,args=(clip_hash, timestamp_at_start,)).start()
+    return '',200
 
 
-async def dedicated_thread_connection(websocket, clip_hash):
+def dedicated_thread_connection(clip_hash, timestamp_at_start):
     mainapi = MainService()
-    result = mainapi.main_job(clip_hash)
+    result,time_took = mainapi.main_job(1, clip_hash, timestamp_at_start)
     print(result)
-    await websocket.send(result)
-
-
-async def main():
-    async with websockets.serve(session, "localhost", 8765, max_size=None):
-        await asyncio.Future()
+    print(f"Job took {time_took}s")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    app.run(debug=True,host='0.0.0.0')

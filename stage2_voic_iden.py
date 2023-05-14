@@ -43,7 +43,7 @@ class VoiceIdentification:
         self.backend_interface = backend_interface
         warnings.filterwarnings("ignore")
 
-    def identify_speaker(self, subclip, user):
+    def identify_speaker(self, subclip, user, timestamp_at_start):
         """For a given subclip, it evaluates it against a list of
         pre-recorded prioritized (most used, most recent, added by)
         sub-clips and returns the best match.
@@ -56,6 +56,8 @@ class VoiceIdentification:
             done and segment.
         user : int
             User id of the user-recorder
+        timestamp_at_start : int
+            Timestamp at which the clip recording started.
 
         Returns
         -------
@@ -124,7 +126,7 @@ class VoiceIdentification:
         speaker_id = self.get_speaker_from_hash(ordered_results[0][0])
 
         # Insertion into db and FTP server and deleting from local memory
-        self.backend_interface.insert_subclip(subclip, user, speaker_id, ordered_results[0][0])
+        self.backend_interface.insert_subclip(subclip, user, speaker_id, ordered_results[0][0], timestamp_at_start)
 
         return ordered_results[0][0], speaker_id, float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
@@ -224,10 +226,20 @@ class VoiceIdentification:
                 speaker_for_hash = \
                     pd.read_sql(fetch_speaker_for_hash_query, self.backend_interface.mysql)['speaker'].tolist()[0]
                 weight_list[speaker_for_hash] = weight[score]
-            print(f"[] -- Multiplier for {i} is {float(weight_list[i])}")
-            speaker_selected_hash = db_dataframe.loc[db_dataframe['speaker'] == i].head(int(5 * float(weight_list[i])))[
-                'hash'].tolist()
-            registered_speakers = registered_speakers + speaker_selected_hash
+
+            try:
+                print(f"[] -- Multiplier for {i} is {float(weight_list[i])}")
+                speaker_selected_hash = \
+                    db_dataframe.loc[db_dataframe['speaker'] == i].head(int(10 * float(weight_list[i])))[
+                        'hash'].tolist()
+                registered_speakers = registered_speakers + speaker_selected_hash
+            except KeyError:
+                print(f"[!] -- Multiplier for {i} is impossible to calculate. Defaulting to 0.5")
+                speaker_selected_hash = \
+                    db_dataframe.loc[db_dataframe['speaker'] == i].head(int(10 * 0.5))[
+                        'hash'].tolist()
+                registered_speakers = registered_speakers + speaker_selected_hash
+                pass
 
         return registered_speakers
 

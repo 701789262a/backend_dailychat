@@ -1,12 +1,16 @@
 import json
-
+import datetime
 from api_called_functions import AppFunction
 
 
 class MainService:
     def __init__(self):
-        self.api = AppFunction('config.yaml', 'cpu', 'cpu')
+        self.firebase = None
+        self.api = AppFunction('config.yaml')
 
-    def main_job(self, clip_hash):
-        result = self.api.manage_regular_job(1, clip_hash + ".wav")
-        return json.dumps(result)
+    def main_job(self, user, clip_hash, timestamp_at_start):
+        time_start = datetime.datetime.now().timestamp()
+        result = self.api.manage_regular_job(user, clip_hash + ".wav", timestamp_at_start)
+        json_result = json.dumps(result)
+        time_end = datetime.datetime.now().timestamp()
+        return json_result, time_end-time_start

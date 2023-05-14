@@ -2,14 +2,22 @@ import json
 import os
 from ftplib import FTP
 
+import firebase_admin
 import mysql.connector
 from typing import Tuple
 
 import pandas as pd
+from firebase_admin import credentials, firestore
+
+
+def firebase_datastore_login() -> None:
+    cred = credentials.Certificate("firebase_certificate/guardan-audio-79f666b3f835.json")
+    firebase_admin.initialize_app(cred)
 
 
 class DbFtpInterface:
     def __init__(self):
+        self.firebase = None
         self.ftp = None
         self.cursor = None
         self.mysql = None
@@ -46,6 +54,7 @@ class DbFtpInterface:
         self.ftp = FTP(host=ftp_server)
         self.ftp.login(user=ftp_user, passwd=ftp_password)
         self.ftp.cwd('subclips')
+        self.ftp.set_pasv(True)
 
         # Only for testing, folder with trial subclips
         self.ftp.cwd('trial')
@@ -73,8 +82,8 @@ class DbFtpInterface:
         except mysql.connector.errors.IntegrityError:
             return None, None
 
-    def insert_subclip(self, subclip, first_username, speaker, ordered_results) -> None:
-        """Indexes subclip into database and stores into FTP server.
+    def insert_subclip(self, subclip, first_username, speaker, ordered_results, timestamp_at_start) -> None:
+        """Indexes subclip into database and firebase-backend and stores into FTP server.
         Deletes the tmp file after the process is over.
 
         Arguments
@@ -87,6 +96,8 @@ class DbFtpInterface:
             Speaker id to whom it should be associated to. [0 = unknown].
         ordered_results : str
             Hash referring to the hash that confirmed the subclip.
+        timestamp_at_start : int
+            Timestamp at which the clip recording started.
         """
         # Getting path from subclip
         path = subclip[0]
@@ -109,3 +120,29 @@ class DbFtpInterface:
         print(insert_subclip_query)
         self.cursor.execute(insert_subclip_query)
         self.mysql.commit()
+
+        self.push_chat_to_firebase(path, first_username,
+                                   json.dumps(subclip[1]).replace(handle_single_quote_from, handle_single_quote_to),
+                                   timestamp_at_start, speaker)
+
+    def push_chat_to_firebase(self, subclip_hash, user, json_result, timestamp_at_start, speaker) -> None:
+
+        results = json.loads(json_result)
+        print(results)
+        try:
+            firebase_datastore_login()
+        except ValueError:
+            # Firebase app already initialized
+            print("[] Firebase already started")
+            pass
+        self.firebase = firestore.client()
+        doc_ref = self.firebase.collection(u'chats').document(str(user)).collection(u'messages').document(
+            str(subclip_hash))
+        doc_ref.set({
+            u'id': str(subclip_hash),
+            u'sender': str(user),
+            u'speaker': speaker,
+            u'time': str(int(timestamp_at_start) + int(results['start']) * 1000),
+            u'text': str(results['text']).strip()
+
+        })

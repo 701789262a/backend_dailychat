@@ -6,17 +6,13 @@ import yaml
 
 class AppFunction:
 
-    def __init__(self, config_file, diarization_device, identification_device):
+    def __init__(self, config_file):
         """Initializes the object for callable function from app.
 
         Arguments
         ---------
         config_file : str
-            Path to config file where db and ftp and settings are stored.
-        diarization_device : str
-            Device where diarization will be performed [cpu, cuda].
-        identification_device : str
-            Device where identification will be performed [cpu, cuda].
+            Path to config file where settings are stored.
         """
 
         config = yaml.unsafe_load(open(config_file, 'r').read())
@@ -25,10 +21,10 @@ class AppFunction:
                                         config['auth']['db']['pass'])
         self.middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
                                          config['auth']['ftp']['pass'])
-        self.identificator = VoiceIdentification(self.middle_to_backend, 0.25, identification_device,
+        self.identificator = VoiceIdentification(self.middle_to_backend, 0.25, config['identification']['device'],
                                                  config['identification']['identification_workers'],
                                                  config['identification']['levels'])
-        self.translator = VoiceDiarization('large-v2', diarization_device)
+        self.translator = VoiceDiarization(config['diarization']['model'], config['diarization']['device'])
 
     # medium cpu 65s win diar
     # small cpu 31s win diar
@@ -55,9 +51,9 @@ class AppFunction:
         for subclip in subclip_names:
             # la subclip con hash subclip[0] viene inserita dall user 1, indentificata da se stessa (subclip[0]) e
             # lo speaker 'e 2
-            self.middle_to_backend.insert_subclip(subclip, sender_user_id, speaker_id, subclip[0])
+            self.middle_to_backend.insert_subclip(subclip, sender_user_id, speaker_id, subclip[0], timestamp_at_start)
 
-    def manage_regular_job(self, sender_user_id, speaker_clip):
+    def manage_regular_job(self, sender_user_id, speaker_clip, timestamp_at_start):
         """Transcribes and identify the speaker. Saves subclips to FTP and stores info on db.
 
         Arguments
@@ -66,6 +62,8 @@ class AppFunction:
             User id who sent the job request.
         speaker_clip : str
             Path for the .wav clip.
+        timestamp_at_start : int
+            Timestamp at which the clip recording started.
 
         Returns
         -------
@@ -77,12 +75,12 @@ class AppFunction:
         subclips_name = self.translator.clip_transcribe(speaker_clip)
 
         # Dict containing subclip hash and speaker.
-        analyzed_subclip = {speaker_clip:{'subclips': list()}}
+        analyzed_subclip = {speaker_clip: {'subclips': list()}}
 
         # Interating thorugh every subclip to identify who's speaking in each subclip.
         for subclip in subclips_name:
             # Identifying subclip speaker
-            identification = self.identificator.identify_speaker(subclip, sender_user_id)
+            identification = self.identificator.identify_speaker(subclip, sender_user_id, timestamp_at_start)
 
             # Appending identification and subclip to dict
             analyzed_subclip[speaker_clip]['subclips'].append([subclip, identification])
