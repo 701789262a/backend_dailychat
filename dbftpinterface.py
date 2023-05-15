@@ -1,6 +1,6 @@
 import json
 import os
-from ftplib import FTP
+import ftplib
 
 import firebase_admin
 import mysql.connector
@@ -37,10 +37,10 @@ class DbFtpInterface:
             Port for database
         """
         self.mysql = mysql.connector.connect(host=mysql_server, user=mysql_user, password=mysql_password,
-                                             database='dba',port=port)
+                                             database='dba', port=port)
         self.cursor = self.mysql.cursor()
 
-    def ftp_login(self, ftp_server, ftp_user, ftp_password) -> None:
+    def ftp_login(self, ftp_server, ftp_user, ftp_password, ftp_port) -> None:
         """Logins into FTP server and creates an object to interact with.
 
         Arguments
@@ -51,9 +51,12 @@ class DbFtpInterface:
             Username for FTP server.
         ftp_password : str
             Password for FTP server.
+        ftp_port : int
+            Port for FTP server.
         """
 
-        self.ftp = FTP(host=ftp_server)
+        self.ftp = ftplib.FTP()
+        self.ftp.connect(host=ftp_server, port=ftp_port)
         self.ftp.login(user=ftp_user, passwd=ftp_password)
         self.ftp.cwd('subclips')
         self.ftp.set_pasv(True)
