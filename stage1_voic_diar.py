@@ -44,7 +44,7 @@ class VoiceDiarization:
         # Calling Whisper model to perform diarization. Model returns a list of "segments"
         # where each segment is a sentence (or less than a sentence) divided by pause,
         # punctuation, or speaker distinction.
-        split_transcription = self.model.transcribe(clip_path, suppress_silence=False, temperature=0).to_dict()
+        split_transcription = self.model.transcribe(clip_path, suppress_silence=True, temperature=0).to_dict()
 
         # Loading clip to perform cuts and create sub-clips
         song = AudioSegment.from_file(clip_path, format="wav")

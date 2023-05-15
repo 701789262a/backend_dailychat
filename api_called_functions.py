@@ -18,7 +18,7 @@ class AppFunction:
         config = yaml.unsafe_load(open(config_file, 'r').read())
         self.middle_to_backend = DbFtpInterface()
         self.middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
-                                        config['auth']['db']['pass'])
+                                        config['auth']['db']['pass'],config['auth']['db']['port'])
         self.middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
                                          config['auth']['ftp']['pass'])
         self.identificator = VoiceIdentification(self.middle_to_backend, 0.25, config['identification']['device'],

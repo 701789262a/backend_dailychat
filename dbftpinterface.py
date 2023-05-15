@@ -22,7 +22,7 @@ class DbFtpInterface:
         self.cursor = None
         self.mysql = None
 
-    def db_login(self, mysql_server, mysql_user, mysql_password) -> None:
+    def db_login(self, mysql_server, mysql_user, mysql_password, port) -> None:
         """Logins into database and creates an object to interact with.
 
         Arguments
@@ -33,9 +33,11 @@ class DbFtpInterface:
             Username for database.
         mysql_password : str
             Password for database.
+        port : str
+            Port for database
         """
         self.mysql = mysql.connector.connect(host=mysql_server, user=mysql_user, password=mysql_password,
-                                             database='dba')
+                                             database='dba',port=port)
         self.cursor = self.mysql.cursor()
 
     def ftp_login(self, ftp_server, ftp_user, ftp_password) -> None:
