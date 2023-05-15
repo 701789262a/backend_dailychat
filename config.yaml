@@ -16,3 +16,6 @@ diarization:
   #base tiny medium large large-v2
   model: medium
   device: cpu
+httpserver:
+  ip: 0.0.0.0
+  port: 50038

@@ -4,6 +4,8 @@ import hashlib
 import threading
 
 import flask
+import yaml
+
 from mainservice import MainService
 
 import websockets
@@ -45,4 +47,5 @@ def dedicated_thread_connection(clip_hash, timestamp_at_start):
 
 
 if __name__ == "__main__":
-    app.run(debug=True,host='0.0.0.0')
+    config = yaml.unsafe_load(open("config.yaml", 'r').read())
+    app.run(debug=True,host=config['httpserver']['ip'],port=config['httpserver']['port'])
