@@ -3,12 +3,12 @@ auth:
     host: 192.168.0.218
     user: ftpdba
     pass: bobotti
-    port:
+    port: 21
   db:
     host: 192.168.0.218
     user: ubuntu
     pass: Bobotti123!
-    port: 20121
+    port: 3306
 #CUDA/CPU
 identification:
   identification_workers: 5

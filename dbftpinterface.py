@@ -110,7 +110,7 @@ class DbFtpInterface:
         # e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
         # Stores the tmp .wav subclip into the FTP server
         self.ftp.storbinary('STOR ' + path + '.wav', open('tmp_audio_files_save/' + path + '.wav', 'rb'))
-
+        self.ftp.sendcmd('SITE CHMOD 644 ' + path + '.wav')
         # Removes the tmp .wav subclip from memory
         os.remove('tmp_audio_files_save/' + path + '.wav')
 

@@ -8,7 +8,7 @@ from typing import List
 
 class VoiceDiarization:
 
-    def __init__(self, model, device='cpu'):
+    def __init__(self, model, device='cpu',dual_gpu=False):
         """Loads whisper model (chosen by user) on selected device [CUDA, CPU].
         Modifies model making it compatible with whisper-stable.
 
@@ -18,9 +18,19 @@ class VoiceDiarization:
             Model to be used from whisper set [tiny, base, small, medium, large, large-v2]
         device : str
             Device where the computation will be executed, default = cpu
+        dual_gpu : bool
+            True if dual gpu is present and both are cuda-enabled to split the memory usage
 
         """
         self.model = whisper.load_model(model, device)
+        if dual_gpu:
+            self.model.encoder.to("cuda:0")
+            self.model.decoder.to("cuda:1")
+
+            self.model.decoder.register_forward_pre_hook(
+                lambda _, inputs: tuple([inputs[0].to("cuda:1"), inputs[1].to("cuda:1")] + list(inputs[2:])))
+            self.model.decoder.register_forward_hook(lambda _, inputs, outputs: outputs.to("cuda:0"))
+
         modify_model(self.model)
 
     def clip_transcribe(self, clip_path) -> List[List]:
@@ -47,7 +57,7 @@ class VoiceDiarization:
         split_transcription = self.model.transcribe(clip_path, suppress_silence=True, temperature=0).to_dict()
 
         # Loading clip to perform cuts and create sub-clips
-        song = AudioSegment.from_file(clip_path, format="wav")
+        song = AudioSegment.from_wav(clip_path)
 
         # Loading segments
         segments = split_transcription['segments']
