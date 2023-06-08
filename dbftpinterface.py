@@ -1,6 +1,7 @@
 import json
 import os
 import ftplib
+from datetime import datetime
 
 import firebase_admin
 import mysql.connector
@@ -122,7 +123,7 @@ class DbFtpInterface:
             f'("{path}", "{ordered_results}",{first_username}, {speaker}, ' \
             f"'[{json.dumps(subclip[1]).replace(handle_single_quote_from, handle_single_quote_to)}]')"
 
-        print(insert_subclip_query)
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]{insert_subclip_query}")
         self.cursor.execute(insert_subclip_query)
         self.mysql.commit()
 
@@ -133,12 +134,12 @@ class DbFtpInterface:
     def push_chat_to_firebase(self, subclip_hash, user, json_result, timestamp_at_start, speaker) -> None:
 
         results = json.loads(json_result)
-        print(results)
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]{results}")
         try:
             firebase_datastore_login()
         except ValueError:
             # Firebase app already initialized
-            print("[] Firebase already started")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Firebase already started")
             pass
         self.firebase = firestore.client()
         doc_ref = self.firebase.collection(u'chats').document(str(user)).collection(u'messages').document(

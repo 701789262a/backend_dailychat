@@ -1,4 +1,5 @@
 import threading
+from datetime import datetime
 from threading import Thread, Semaphore
 import queue
 
@@ -98,7 +99,7 @@ class VoiceIdentification:
             # Getting batch job following algorithm calculation
             registered_speakers_batch = self._get_batch_speaker_priority_on_check(user, self.local_score)
 
-            print(f"[] Current batch len {len(registered_speakers_batch)}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Current batch len {len(registered_speakers_batch)}")
 
             # Populating queue with current batch
             for registered_speaker in registered_speakers_batch:
@@ -152,7 +153,7 @@ class VoiceIdentification:
         if registered_speaker is None:
             return
 
-        print(f"[] Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore:
@@ -163,7 +164,7 @@ class VoiceIdentification:
             score, prediction = self.verification.verify_files(path, stored_subclip)
             self.local_score[registered_speaker] = score
         except RuntimeError:
-            print(f"[] Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
             pass
 
     def get_subclip_from_ftp(self, registered_speaker) -> str:
@@ -228,13 +229,13 @@ class VoiceIdentification:
                 weight_list[speaker_for_hash] = weight[score]
 
             try:
-                print(f"[] -- Multiplier for {i} is {float(weight_list[i])}")
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] -- Multiplier for {i} is {float(weight_list[i])}")
                 speaker_selected_hash = \
                     db_dataframe.loc[db_dataframe['speaker'] == i].head(int(10 * float(weight_list[i])))[
                         'hash'].tolist()
                 registered_speakers = registered_speakers + speaker_selected_hash
             except KeyError:
-                print(f"[!] -- Multiplier for {i} is impossible to calculate. Defaulting to 0.5")
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] ! -- Multiplier for {i} is impossible to calculate. Defaulting to 0.5")
                 speaker_selected_hash = \
                     db_dataframe.loc[db_dataframe['speaker'] == i].head(int(10 * 0.5))[
                         'hash'].tolist()

@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 
 import whisper
 from pydub import AudioSegment
@@ -32,7 +33,7 @@ class VoiceDiarization:
                 lambda _, inputs: tuple([inputs[0].to("cuda:1"), inputs[1].to("cuda:1")] + list(inputs[2:])))
             self.model.decoder.register_forward_hook(lambda _, inputs, outputs: outputs.to("cuda:0"))
         else:
-            print("[] Using single gpu/cpu")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Using single gpu/cpu")
 
         modify_model(self.model)
 
@@ -78,7 +79,7 @@ class VoiceDiarization:
             # Hash is calculated and cut is saved into temporary folder for successive
             # and immediate use.
             filename = hashlib.sha256(cut.raw_data).hexdigest()
-            print(f"[] Hashed as: {str(filename)} | "
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Hashed as: {str(filename)} | "
                   f"with text: <<{segment['text']}>> | "
                   f"start: {str(segment['start'])} | "
                   f"stop: {str(segment['end'])}")
