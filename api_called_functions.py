@@ -18,13 +18,15 @@ class AppFunction:
         config = yaml.unsafe_load(open(config_file, 'r').read())
         self.middle_to_backend = DbFtpInterface()
         self.middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
-                                        config['auth']['db']['pass'],config['auth']['db']['port'])
+                                        config['auth']['db']['pass'], config['auth']['db']['port'])
         self.middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
-                                         config['auth']['ftp']['pass'],config['auth']['ftp']['port'])
+                                         config['auth']['ftp']['pass'], config['auth']['ftp']['port'])
         self.identificator = VoiceIdentification(self.middle_to_backend, 0.25, config['identification']['device'],
                                                  config['identification']['identification_workers'],
                                                  config['identification']['levels'])
-        self.translator = VoiceDiarization(config['diarization']['model'], config['diarization']['device'])
+        self.translator = VoiceDiarization(config['diarization']['model'], config['diarization']['device'],
+                                           config['diarization']['dualgpu']
+                                           if config['diarization']['device'] == 'cuda' else False)
 
     # medium cpu 65s win diar
     # small cpu 31s win diar

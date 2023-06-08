@@ -38,9 +38,9 @@ def addspeaker():
 
 def dedicated_thread_connection(clip_hash, timestamp_at_start):
     mainapi = MainService()
-    result, time_took = mainapi.main_job(1, clip_hash, timestamp_at_start)
+    result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
     print(result)
-    print(f"Job took {time_took}s")
+    print(f"Job took {time_took}s; Speed factor {time_took/clip_length_seconds} (lower is better)")
 
 
 if __name__ == "__main__":

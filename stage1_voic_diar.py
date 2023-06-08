@@ -8,7 +8,7 @@ from typing import List
 
 class VoiceDiarization:
 
-    def __init__(self, model, device='cpu',dual_gpu=False):
+    def __init__(self, model, device='cpu', dual_gpu=False):
         """Loads whisper model (chosen by user) on selected device [CUDA, CPU].
         Modifies model making it compatible with whisper-stable.
 
@@ -24,12 +24,15 @@ class VoiceDiarization:
         """
         self.model = whisper.load_model(model, device)
         if dual_gpu:
+            print("[] Using dual gpu")
             self.model.encoder.to("cuda:0")
             self.model.decoder.to("cuda:1")
 
             self.model.decoder.register_forward_pre_hook(
                 lambda _, inputs: tuple([inputs[0].to("cuda:1"), inputs[1].to("cuda:1")] + list(inputs[2:])))
             self.model.decoder.register_forward_hook(lambda _, inputs, outputs: outputs.to("cuda:0"))
+        else:
+            print("[] Using single gpu/cpu")
 
         modify_model(self.model)
 
