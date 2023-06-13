@@ -25,7 +25,7 @@ class VoiceDiarization:
         """
         self.model = whisper.load_model(model, device)
         if dual_gpu:
-            print("[] Using dual gpu")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Using dual gpu")
             self.model.encoder.to("cuda:0")
             self.model.decoder.to("cuda:1")
 

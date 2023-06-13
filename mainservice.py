@@ -4,9 +4,9 @@ from api_called_functions import AppFunction
 
 
 class MainService:
-    def __init__(self):
+    def __init__(self,translator, identificator,mtb):
         self.firebase = None
-        self.api = AppFunction('config.yaml')
+        self.api = AppFunction('config.yaml',translator, identificator,mtb)
 
     def main_job(self, user, clip_hash, timestamp_at_start):
         time_start = datetime.datetime.now().timestamp()

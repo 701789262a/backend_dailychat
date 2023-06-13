@@ -6,7 +6,7 @@ import yaml
 
 class AppFunction:
 
-    def __init__(self, config_file):
+    def __init__(self, config_file,translator, identificator,mtb):
         """Initializes the object for callable function from app.
 
         Arguments
@@ -15,18 +15,21 @@ class AppFunction:
             Path to config file where settings are stored.
         """
 
-        config = yaml.unsafe_load(open(config_file, 'r').read())
-        self.middle_to_backend = DbFtpInterface()
-        self.middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
-                                        config['auth']['db']['pass'], config['auth']['db']['port'])
-        self.middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
-                                         config['auth']['ftp']['pass'], config['auth']['ftp']['port'])
-        self.identificator = VoiceIdentification(self.middle_to_backend, 0.25, config['identification']['device'],
-                                                 config['identification']['identification_workers'],
-                                                 config['identification']['levels'])
-        self.translator = VoiceDiarization(config['diarization']['model'], config['diarization']['device'],
-                                           config['diarization']['dualgpu']
-                                           if config['diarization']['device'] == 'cuda' else False)
+        # config = yaml.unsafe_load(open(config_file, 'r').read())
+        # self.middle_to_backend = DbFtpInterface()
+        # self.middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
+        #                                 config['auth']['db']['pass'], config['auth']['db']['port'])
+        # self.middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
+        #                                  config['auth']['ftp']['pass'], config['auth']['ftp']['port'])
+        # self.identificator = VoiceIdentification(self.middle_to_backend, 0.25, config['identification']['device'],
+        #                                          config['identification']['identification_workers'],
+        #                                          config['identification']['levels'])
+        # self.translator = VoiceDiarization(config['diarization']['model'], config['diarization']['device'],
+        #                                    config['diarization']['dualgpu']
+        #                                    if config['diarization']['device'] == 'cuda' else False)
+        self.middle_to_backend = mtb
+        self.translator = translator
+        self.identificator = identificator
 
     # medium cpu 65s win diar
     # small cpu 31s win diar
