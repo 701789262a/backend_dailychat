@@ -2,6 +2,7 @@ import json
 import os
 import ftplib
 import threading
+import time
 from datetime import datetime
 
 import firebase_admin
@@ -45,7 +46,7 @@ class DbFtpInterface:
                                              database='dba', port=port)
         self.cursor = self.mysql.cursor()
 
-    def ftp_login(self, ftp_server, ftp_user, ftp_password, ftp_port) -> None:
+    def ftp_login(self, ftp_server, ftp_user, ftp_password, ftp_port, keepalive=False) -> None:
         """Logins into FTP server and creates an object to interact with.
 
         Arguments
@@ -58,6 +59,8 @@ class DbFtpInterface:
             Password for FTP server.
         ftp_port : int
             Port for FTP server.
+        keepalive : bool
+            Flag to control keepalive, if True, a thread is started than keeps the collection alive
         """
 
         self.ftp = ftplib.FTP()
@@ -68,6 +71,18 @@ class DbFtpInterface:
 
         # Only for testing, folder with trial subclips
         self.ftp.cwd('trial')
+
+        # Starts keepalive thread
+        threading.Thread(target=self.keepalive).start()
+
+    def keepalive(self):
+        """Keepalive subroutine for FTP connection
+        """
+
+        while True:
+            time.sleep(30)
+            self.ftp.sendcmd("NOOP")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Keeping alive FTP...")
 
     def create_speaker(self, name) -> Tuple:
         """Create a new speaker in [dba.speakers] with given name
@@ -134,7 +149,6 @@ class DbFtpInterface:
         self.push_chat_to_firebase(path, first_username,
                                    json.dumps(subclip[1]).replace(handle_single_quote_from, handle_single_quote_to),
                                    timestamp_at_start, speaker)
-
 
     def push_chat_to_firebase(self, subclip_hash, user, json_result, timestamp_at_start, speaker) -> None:
         """Pushes diarized and identified subclip to firebase server.
