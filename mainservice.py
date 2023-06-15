@@ -17,3 +17,4 @@ class MainService:
 
             clip_length = float(result[key]['subclips'][-1][0][1]['end'])
         return json_result, time_end-time_start, clip_length
+

@@ -11,14 +11,16 @@ auth:
     port: 3306
 #CUDA/CPU
 identification:
-  identification_workers: 5
-  levels: 1
+  identification_workers: 10
+  levels: 2
   device: cuda
 diarization:
   #base tiny medium large large-v2
-  model: medium
+  model: tiny
   device: cuda
-  dualgpu: True
+  dualgpu: False
 httpserver:
   ip: 0.0.0.0
   port: 1001
+  debug: True
+  threads: 2

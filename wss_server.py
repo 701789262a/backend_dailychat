@@ -59,6 +59,17 @@ def default():
     return page, 200
 
 
+@app.route('/changeId', methods=['POST'])
+def change_id():
+    middle_to_backend.change_subclip_user(request.values['id'], request.values['user'], request.values['new_speaker'])
+    return '', 200
+
+@app.route('/getSpeakerUsername', methods=['POST'])
+def get_username():
+    print(request.values['user'], request.values['speaker'])
+    username= middle_to_backend.get_username_from_speaker(request.values['user'], request.values['speaker'])
+    return username, 200
+
 def dedicated_thread_connection(clip_hash, timestamp_at_start):
     mainapi = MainService(translator, identificator, middle_to_backend)
     result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
@@ -71,5 +82,7 @@ def dedicated_thread_connection(clip_hash, timestamp_at_start):
 
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
-    # app.run(debug=False, host=config['httpserver']['ip'], port=config['httpserver']['port'], use_reloader=False)
-    serve(app, host=config['httpserver']['ip'], port=config['httpserver']['port'])
+    if config['httpserver']['debug']:
+        app.run(debug=False, host=config['httpserver']['ip'], port=config['httpserver']['port'], use_reloader=False)
+    else:
+        serve(app, host=config['httpserver']['ip'], port=config['httpserver']['port'],threads=config['httpserver']['threads'])

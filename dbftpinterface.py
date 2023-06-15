@@ -1,6 +1,7 @@
 import json
 import os
 import ftplib
+import threading
 from datetime import datetime
 
 import firebase_admin
@@ -22,6 +23,9 @@ class DbFtpInterface:
         self.ftp = None
         self.cursor = None
         self.mysql = None
+
+        # Multithread lock
+        self._lock = threading.Lock()
 
     def db_login(self, mysql_server, mysql_user, mysql_password, port) -> None:
         """Logins into database and creates an object to interact with.
@@ -131,7 +135,23 @@ class DbFtpInterface:
                                    json.dumps(subclip[1]).replace(handle_single_quote_from, handle_single_quote_to),
                                    timestamp_at_start, speaker)
 
+
     def push_chat_to_firebase(self, subclip_hash, user, json_result, timestamp_at_start, speaker) -> None:
+        """Pushes diarized and identified subclip to firebase server.
+
+        Arguments
+        ---------
+        subclip_hash : str
+            String containing hash for this subclip
+        user : int
+            ID for recording user
+        json_result : str
+            JSON compliant string with subclip result
+        timestamp_at_start : int
+            Timestamp at recording start
+        speaker : int
+            Speaker ID
+        """
 
         results = json.loads(json_result)
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]{results}")
@@ -152,3 +172,80 @@ class DbFtpInterface:
             u'text': str(results['text']).strip()
 
         })
+
+    def change_subclip_user(self, subclip_id, user, new_speaker):
+        """Pushes to firebase and local DB a new speaker for selected subclip
+
+        Arguments
+        ---------
+        subclip_id : str
+            String containing ID (hash) referencing subclip to alter
+        user : str
+            ID for recording user
+        new_speaker : str
+            New chosen speaker
+        """
+
+        # Pushes query to local DB
+        change_user_query = f'UPDATE subclips SET speaker = "{new_speaker}" WHERE hash = "{subclip_id}"'
+        try:
+            self.cursor.execute(change_user_query)
+        except mysql.connector.errors.IntegrityError:
+            # Catch if user is not present
+            self.mysql.commit()
+            self.create_speaker(new_speaker)
+            self.mysql.commit()
+            self.cursor.execute(change_user_query)
+        self.mysql.commit()
+
+        # Pushes query to firebase
+        try:
+            firebase_datastore_login()
+        except ValueError:
+            # Firebase app already initialized
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Firebase already started")
+            pass
+        self.firebase = firestore.client()
+        doc_ref = self.firebase.collection(u'chats').document(str(user)).collection(u'messages').document(
+            str(subclip_id))
+        # doc_ref.set({
+        #     u'id': str(subclip_id),
+        #     u'sender': str(user),
+        #     u'speaker': new_speaker,
+        #     u'time': str(int(timestamp_at_start) + int(results['start']) * 1000),
+        #     u'text': str(results['text']).strip()
+        #
+        # })
+        doc_ref.update({
+            u'speaker': new_speaker
+        })
+
+    def get_username_from_speaker(self, user, speaker):
+        """Retrieves the name associated with the speaker by user
+
+        Arguments
+        ---------
+        user : str
+            Username ID associated with the user that initiated the request
+        speaker : str
+            Speaker ID associated with subclip
+
+        Returns
+        -------
+        username : str
+            Name associated with speaker
+        """
+
+        # Pushes query to local DB into pandas dataframe
+        get_username_query = f'SELECT * FROM speaker WHERE id = "{speaker}"'
+        try:
+            with self._lock:
+                self.cursor.execute(get_username_query)
+                get_username_query_result = self.cursor.fetchall()[0][1]
+                print(get_username_query_result)
+        except mysql.connector.errors.IntegrityError:
+
+            # If name is not present, defaults to "None"
+            return "None"
+
+        return get_username_query_result
