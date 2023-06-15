@@ -73,7 +73,8 @@ class DbFtpInterface:
         self.ftp.cwd('trial')
 
         # Starts keepalive thread
-        threading.Thread(target=self.keepalive).start()
+        if keepalive:
+            threading.Thread(target=self.keepalive).start()
 
     def keepalive(self):
         """Keepalive subroutine for FTP connection
