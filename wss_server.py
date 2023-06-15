@@ -19,7 +19,7 @@ middle_to_backend = DbFtpInterface()
 middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
                            config['auth']['db']['pass'], config['auth']['db']['port'])
 middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
-                            config['auth']['ftp']['pass'], config['auth']['ftp']['port'])
+                            config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=True)
 identificator = VoiceIdentification(middle_to_backend, 0.25, config['identification']['device'],
                                     config['identification']['identification_workers'],
                                     config['identification']['levels'])
@@ -64,11 +64,13 @@ def change_id():
     middle_to_backend.change_subclip_user(request.values['id'], request.values['user'], request.values['new_speaker'])
     return '', 200
 
+
 @app.route('/getSpeakerUsername', methods=['POST'])
 def get_username():
     print(request.values['user'], request.values['speaker'])
-    username= middle_to_backend.get_username_from_speaker(request.values['user'], request.values['speaker'])
+    username = middle_to_backend.get_username_from_speaker(request.values['user'], request.values['speaker'])
     return username, 200
+
 
 def dedicated_thread_connection(clip_hash, timestamp_at_start):
     mainapi = MainService(translator, identificator, middle_to_backend)
@@ -85,4 +87,5 @@ if __name__ == "__main__":
     if config['httpserver']['debug']:
         app.run(debug=False, host=config['httpserver']['ip'], port=config['httpserver']['port'], use_reloader=False)
     else:
-        serve(app, host=config['httpserver']['ip'], port=config['httpserver']['port'],threads=config['httpserver']['threads'])
+        serve(app, host=config['httpserver']['ip'], port=config['httpserver']['port'],
+              threads=config['httpserver']['threads'])
