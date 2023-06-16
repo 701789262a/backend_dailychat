@@ -77,13 +77,16 @@ class DbFtpInterface:
             threading.Thread(target=self.keepalive).start()
 
     def keepalive(self):
-        """Keepalive subroutine for FTP connection
+        """Keepalive subroutine for FTP and MySQL connection
         """
 
         while True:
             time.sleep(30)
             self.ftp.sendcmd("NOOP")
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Keeping alive FTP...")
+            with self._lock:
+                self.cursor.execute("SHOW DATABASES;")
+                _ = self.cursor.fetchall()
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Keeping alive remote connections...")
 
     def create_speaker(self, name) -> Tuple:
         """Create a new speaker in [dba.speakers] with given name
