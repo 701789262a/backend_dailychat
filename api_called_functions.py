@@ -1,3 +1,5 @@
+import datetime
+
 from stage2_voic_iden import VoiceIdentification
 from stage1_voic_diar import VoiceDiarization
 from dbftpinterface import DbFtpInterface
@@ -6,7 +8,7 @@ import yaml
 
 class AppFunction:
 
-    def __init__(self, config_file,translator, identificator,mtb):
+    def __init__(self, config_file, translator, identificator, mtb):
         """Initializes the object for callable function from app.
 
         Arguments
@@ -15,7 +17,7 @@ class AppFunction:
             Path to config file where settings are stored.
         """
 
-        # config = yaml.unsafe_load(open(config_file, 'r').read())
+        self.config = yaml.unsafe_load(open(config_file, 'r').read())
         # self.middle_to_backend = DbFtpInterface()
         # self.middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
         #                                 config['auth']['db']['pass'], config['auth']['db']['port'])
@@ -84,10 +86,15 @@ class AppFunction:
 
         # Interating thorugh every subclip to identify who's speaking in each subclip.
         for subclip in subclips_name:
-            # Identifying subclip speaker
-            identification = self.identificator.identify_speaker(subclip, sender_user_id, timestamp_at_start)
 
-            # Appending identification and subclip to dict
-            analyzed_subclip[speaker_clip]['subclips'].append([subclip, identification])
+            # Identifying subclip speaker if no_speech_prob is lower than threshold
+            print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+                  f"No speech prob: {subclip[1]['no_speech_prob']}")
+
+            if subclip[1]['no_speech_prob'] < self.config['diarization']['no_speech_prob']:
+                identification = self.identificator.identify_speaker(subclip, sender_user_id, timestamp_at_start)
+
+                # Appending identification and subclip to dict
+                analyzed_subclip[speaker_clip]['subclips'].append([subclip, identification])
 
         return analyzed_subclip

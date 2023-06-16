@@ -14,7 +14,12 @@ class MainService:
         json_result = json.dumps(result)
         time_end = datetime.datetime.now().timestamp()
         for key in result.keys():
-
-            clip_length = float(result[key]['subclips'][-1][0][1]['end'])
+            try:
+                clip_length = float(result[key]['subclips'][-1][0][1]['end'])
+            except IndexError:
+                print(
+                    f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] No audio file on this subclip")
+                clip_length = 1
+                pass
         return json_result, time_end-time_start, clip_length
 

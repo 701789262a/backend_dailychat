@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 import hashlib
 import threading
@@ -34,7 +35,7 @@ def addspeaker():
     tmp_file_name = str(int(datetime.utcnow().timestamp()))
     with open(f'tmp{tmp_file_name}.wav', 'wb') as f:
         request.files['file'].save(f)
-
+    size = os.stat(f'tmp{tmp_file_name}.wav')
     timestamp_at_start = request.values['timestamp'].split('/')[-1].split('.')[0]
     with open(f'{"tmp" + tmp_file_name + ".wav"}', 'rb') as f:
         file_to_hash_binary = f.read()
@@ -43,7 +44,7 @@ def addspeaker():
         with open(f'{clip_hash}.wav', 'wb') as g:
             g.write(file_to_hash_binary)
             g.close()
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size/1024,1)}kB")
 
     threading.Thread(target=dedicated_thread_connection, args=(clip_hash, timestamp_at_start,)).start()
     return '', 200
@@ -80,6 +81,7 @@ def dedicated_thread_connection(clip_hash, timestamp_at_start):
         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
         f"Job took {time_took}s; "
         f"Speed factor {time_took / clip_length_seconds} (lower is better)")
+    print("")
 
 
 if __name__ == "__main__":
