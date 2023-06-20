@@ -15,7 +15,13 @@ from stage2_voic_iden import VoiceIdentification
 UPLOAD_FOLDER = 'httpfiles/'
 app = flask.Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 config = yaml.unsafe_load(open("config.yaml", 'r').read())
+if config['httpserver']['cuda_debug']:
+    print(
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+        f"Running on cuda debug")
+    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 middle_to_backend = DbFtpInterface()
 middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
                            config['auth']['db']['pass'], config['auth']['db']['port'])
@@ -91,6 +97,9 @@ def dedicated_thread_connection(clip_hash, timestamp_at_start):
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
     if config['httpserver']['debug']:
+        print(
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+            f"Running on server debug")
         app.run(debug=False, host=config['httpserver']['ip'], port=config['httpserver']['port'], use_reloader=False)
     else:
         serve(app, host=config['httpserver']['ip'], port=config['httpserver']['port'],
