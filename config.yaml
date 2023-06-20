@@ -19,9 +19,10 @@ diarization:
   model: medium
   device: cuda
   dualgpu: False
-  no_speech_prob: 0.42
+  no_speech_prob: 0.5
 httpserver:
   ip: 0.0.0.0
   port: 1001
   debug: False
+  cuda_debug : True
   threads: 2
