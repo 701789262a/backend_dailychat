@@ -267,3 +267,24 @@ class DbFtpInterface:
             return "None"
 
         return get_username_query_result
+
+    def delete_subclip(self, id):
+        """Deletes subclip from database; document stored on firebase is considered deleted by frontend
+
+        Arguments
+        ---------
+        id : str
+            Subclip id to delete
+        """
+
+        # Prepares and send query to MySQL
+        delete_subclip_query = f'DELETE FROM subclip WHERE id = "{id}"'
+        try:
+            with self._lock:
+                self.cursor.execute(delete_subclip_query)
+                self.mysql.commit()
+        except mysql.connector.errors.IntegrityError:
+
+            # If id is not present, defaults to "None"
+            return "None"
+

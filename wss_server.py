@@ -78,6 +78,10 @@ def get_username():
     username = middle_to_backend.get_username_from_speaker(request.values['user'], request.values['speaker'])
     return username, 200
 
+@app.route('/deleteSubclip', methods=['POST'])
+def delete_subclip():
+    middle_to_backend.delete_subclip(request.values['id'])
+    return '',200
 
 def dedicated_thread_connection(clip_hash, timestamp_at_start):
     mainapi = MainService(translator, identificator, middle_to_backend)
