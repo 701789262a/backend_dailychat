@@ -165,6 +165,8 @@ class VoiceIdentification:
         try:
             score, prediction = self.verification.verify_files(path, stored_subclip)
             self.local_score[registered_speaker] = score
+            print(
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Pid {threading.get_native_id()}\tanalyzed {registered_speaker}; Score: {score}")
         except RuntimeError:
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
