@@ -3,11 +3,14 @@ from datetime import datetime
 from threading import Thread, Semaphore
 import queue
 
+import numpy as np
 import pandas as pd
 from speechbrain.pretrained import SpeakerRecognition
 import warnings
 
 from typing import List
+
+pd.options.mode.chained_assignment = None
 
 
 class VoiceIdentification:
@@ -42,6 +45,7 @@ class VoiceIdentification:
         self.n_level = n_level
         self.threshold = threshold
         self.backend_interface = backend_interface
+        self.local_analysis_dataframe = pd.DataFrame(columns=['hash', 'speaker_id', 'score'])
         warnings.filterwarnings("ignore")
 
     def identify_speaker(self, subclip, user, timestamp_at_start):
@@ -97,10 +101,12 @@ class VoiceIdentification:
             ]
 
             # Getting batch job following algorithm calculation
-            registered_speakers_batch = self._get_batch_speaker_priority_on_check_simplified(user)#, self.local_score)
+            registered_speakers_batch = self._get_batch_speaker_priority_on_check_simplified(
+                user)  # , self.local_score)
 
             print(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Current batch len {len(registered_speakers_batch)}")
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+                f"Current batch len {len(registered_speakers_batch)}")
 
             # Populating queue with current batch
             for registered_speaker in registered_speakers_batch:
@@ -122,15 +128,20 @@ class VoiceIdentification:
                 worker.join()
 
         # Ordering the results from the best match to the worst.
+        ordered_result_dataframe = self.local_analysis_dataframe.groupby(
+            self.local_analysis_dataframe.speaker_id).apply(lambda x: np.mean(weights=x.score))
+        speaker_id_dataframe_best_match = ordered_result_dataframe.sort_values(ascending=False).index[0]
+        print(self.local_analysis_dataframe)
         ordered_results = sorted(self.local_score.items(), key=lambda item: item[1], reverse=True)
 
         # Retrieves speaker id from db
         speaker_id = self.get_speaker_from_hash(ordered_results[0][0])
 
         # Insertion into db and FTP server and deleting from local memory
-        self.backend_interface.insert_subclip(subclip, user, speaker_id, ordered_results[0][0], timestamp_at_start)
+        self.backend_interface.insert_subclip(subclip, user, speaker_id_dataframe_best_match, ordered_results[0][0],
+                                              timestamp_at_start)
 
-        return ordered_results[0][0], speaker_id, float(ordered_results[0][1]), float(
+        return ordered_results[0][0], speaker_id_dataframe_best_match, float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
     def batch_worker(self, q, path, semaphore):
@@ -155,21 +166,26 @@ class VoiceIdentification:
             return
 
         print(
-            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]"
+            f" Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore:
-            stored_subclip = self.get_subclip_from_ftp(registered_speaker)
+            stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
 
         # Match between given subclip and pre-recorded subclip
         try:
             score, prediction = self.verification.verify_files(path, stored_subclip)
-            self.local_score[registered_speaker] = score
+            self.local_analysis_dataframe = self.local_analysis_dataframe.append(
+                {'hash': registered_speaker[1], 'speaker_id': registered_speaker[0], 'score': score})
+            self.local_score[registered_speaker[1]] = score
             print(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Pid {threading.get_native_id()}\tanalyzed {registered_speaker}; Score: {score}")
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+                f"Pid {threading.get_native_id()}\tanalyzed {registered_speaker}; Score: {score}")
         except RuntimeError:
             print(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+                f"Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
             pass
 
     def get_subclip_from_ftp(self, registered_speaker) -> str:
@@ -198,11 +214,12 @@ class VoiceIdentification:
         get_subclip_for_speaker = f'SELECT * FROM subclips WHERE speaker = "%d"'
         speakers_dataframe = pd.read_sql(get_speakers_query, self.backend_interface.mysql)
         speakers_id = speakers_dataframe['id'].tolist()
-        subclip_hashes=[]
+        subclip_hashes = []
         for speaker in speakers_id:
             speaker_subclip_dataframe = pd.read_sql(get_subclip_for_speaker % speaker, self.backend_interface.mysql)
             speaker_subclip_id = speaker_subclip_dataframe['hash'].tolist()[:3]
-            subclip_hashes+=speaker_subclip_id
+            speaker_id = speaker_subclip_dataframe['speaker'].tolist()[:3]
+            subclip_hashes += (speaker_id, speaker_subclip_id)
         return subclip_hashes
 
     def _get_batch_speaker_priority_on_check(self, user, weight=None) -> List[str]:
@@ -248,14 +265,16 @@ class VoiceIdentification:
 
             try:
                 print(
-                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] -- Multiplier for {i} is {float(weight_list[i])}")
+                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]"
+                    f" -- Multiplier for {i} is {float(weight_list[i])}")
                 speaker_selected_hash = \
                     db_dataframe.loc[db_dataframe['speaker'] == i].head(int(10 * float(weight_list[i])))[
                         'hash'].tolist()
                 registered_speakers = registered_speakers + speaker_selected_hash
             except KeyError:
                 print(
-                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] ! -- Multiplier for {i} is impossible to calculate. Defaulting to 0.5")
+                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]"
+                    f" ! -- Multiplier for {i} is impossible to calculate. Defaulting to 0.5")
                 speaker_selected_hash = \
                     db_dataframe.loc[db_dataframe['speaker'] == i].head(int(10 * 0.5))[
                         'hash'].tolist()
