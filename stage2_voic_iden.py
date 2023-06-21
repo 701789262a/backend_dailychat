@@ -36,8 +36,10 @@ class VoiceIdentification:
 
         """
         self.ftp_semaphore = None
+        self.file_semaphore = None
         self.job_queue = None
         self.local_score = dict()
+        # Loading pretrained identification model
         self.verification = SpeakerRecognition.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                                             savedir="pretrained_models/spkrec-ecapa-voxceleb",
                                                             run_opts={'device': device})
@@ -45,6 +47,8 @@ class VoiceIdentification:
         self.n_level = n_level
         self.threshold = threshold
         self.backend_interface = backend_interface
+
+        # Creating temporary dataframe for score calculation
         self.local_analysis_dataframe = pd.DataFrame(columns=['hash', 'speaker_id', 'score'])
         warnings.filterwarnings("ignore")
 
@@ -89,6 +93,7 @@ class VoiceIdentification:
         #  IN PARALLELO E SI ASPETTA LA FINE DI TUTTI I THREAD PER PASSARE AL PROSSIMO BATCH)
 
         self.ftp_semaphore = Semaphore(1)
+        self.file_semaphore = Semaphore(1)
 
         # Working through batch to decrease the amount of subclips needed
         for batch_number in range(self.n_level):
@@ -96,21 +101,25 @@ class VoiceIdentification:
             # Starting workers and job queue
             self.job_queue = queue.Queue()
             workers = [
-                Thread(target=self.batch_worker, args=(self.job_queue, path, self.ftp_semaphore,))
+                Thread(target=self.batch_worker, args=(self.job_queue, path, self.ftp_semaphore,self.file_semaphore))
                 for _ in range(self.identification_workers)
             ]
 
             # Getting batch job following algorithm calculation
             registered_speakers_batch = self._get_batch_speaker_priority_on_check_simplified(
-                user)  # , self.local_score)
+                user)
 
+            # Getting batch job following old algorithm calculation -- This function is deprecated but contains code to
+            # be transered to the new simplified function.
+            """registered_speakers_batch = self._get_batch_speaker_priority_on_check_simplified(
+                user, self.local_score)"""
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
                 f"Current batch len {len(registered_speakers_batch)}")
 
             # Populating queue with current batch
             for registered_speaker in registered_speakers_batch:
-                # print(f"Evaluating subclip {registered_speaker}...")
+                #print(f"Evaluating subclip {registered_speaker}...")
 
                 # Populating queue
                 self.job_queue.put(registered_speaker)
@@ -127,24 +136,34 @@ class VoiceIdentification:
             for worker in workers:
                 worker.join()
 
-        # Ordering the results from the best match to the worst.
+        # Creating a pandas Series with average score for every speaker
         ordered_result_dataframe = self.local_analysis_dataframe.groupby(
-            self.local_analysis_dataframe.speaker_id).apply(lambda x: np.mean(weights=x.score))
-        speaker_id_dataframe_best_match = ordered_result_dataframe.sort_values(ascending=False).index[0]
+            self.local_analysis_dataframe.speaker_id).apply(lambda x: np.mean(x.score))
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+              f"Ordered result \n{ordered_result_dataframe}")
+
+        # Ordering speaker from the best match to the worst
+        speaker_id_dataframe_best_match = ordered_result_dataframe.sort_values(
+            ascending=False
+        ).index[0]
+
         print(self.local_analysis_dataframe)
         ordered_results = sorted(self.local_score.items(), key=lambda item: item[1], reverse=True)
 
-        # Retrieves speaker id from db
-        speaker_id = self.get_speaker_from_hash(ordered_results[0][0])
+        # Retrieves speaker id from db // deprecated
+        """speaker_id = self.get_speaker_from_hash(ordered_results[0][0])"""
 
         # Insertion into db and FTP server and deleting from local memory
-        self.backend_interface.insert_subclip(subclip, user, speaker_id_dataframe_best_match, ordered_results[0][0],
+        self.backend_interface.insert_subclip(subclip, user, int(speaker_id_dataframe_best_match), ordered_results[0][0],
                                               timestamp_at_start)
 
-        return ordered_results[0][0], speaker_id_dataframe_best_match, float(ordered_results[0][1]), float(
+        # Temporary dataframe is reset to starting conditions
+        self.local_analysis_dataframe = self.local_analysis_dataframe[0:0]
+
+        return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    def batch_worker(self, q, path, semaphore):
+    def batch_worker(self, q, path, semaphore_ftp,semaphore_file):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
@@ -154,7 +173,9 @@ class VoiceIdentification:
             to signal a stop (queue end).
         path : str
             Path where the subclip to match is stored.
-        semaphore : threading.Semaphore
+        semaphore_ftp : threading.Semaphore
+            Flag to allow max 1 thread to access the FTP subroutine.
+        semaphore_file : threading.Semaphore
             Flag to allow max 1 thread to access the FTP subroutine.
         """
 
@@ -170,14 +191,25 @@ class VoiceIdentification:
             f" Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
-        with semaphore:
+        with semaphore_ftp:
             stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
 
         # Match between given subclip and pre-recorded subclip
         try:
-            score, prediction = self.verification.verify_files(path, stored_subclip)
-            self.local_analysis_dataframe = self.local_analysis_dataframe.append(
-                {'hash': registered_speaker[1], 'speaker_id': registered_speaker[0], 'score': score})
+            with semaphore_file:
+                score, prediction = self.verification.verify_files(path, stored_subclip)
+            new_row = pd.DataFrame(
+                                   {
+                                    'hash': registered_speaker[1],
+                                    'speaker_id': registered_speaker[0],
+                                    'score': float(score)
+                                    },
+                                   index=[0]
+                                   )
+            self.local_analysis_dataframe = pd.concat([
+                new_row,
+                self.local_analysis_dataframe.loc[:]
+            ]).reset_index(drop=True)
             self.local_score[registered_speaker[1]] = score
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
@@ -211,15 +243,19 @@ class VoiceIdentification:
     def _get_batch_speaker_priority_on_check_simplified(self, user):
 
         get_speakers_query = "SELECT * FROM speaker"
-        get_subclip_for_speaker = f'SELECT * FROM subclips WHERE speaker = "%d"'
+        get_subclip_for_speaker = f'SELECT * FROM subclips WHERE speaker = "%d" ORDER BY id desc'
         speakers_dataframe = pd.read_sql(get_speakers_query, self.backend_interface.mysql)
         speakers_id = speakers_dataframe['id'].tolist()
         subclip_hashes = []
         for speaker in speakers_id:
             speaker_subclip_dataframe = pd.read_sql(get_subclip_for_speaker % speaker, self.backend_interface.mysql)
-            speaker_subclip_id = speaker_subclip_dataframe['hash'].tolist()[:3]
-            speaker_id = speaker_subclip_dataframe['speaker'].tolist()[:3]
-            subclip_hashes += (speaker_id, speaker_subclip_id)
+            speakers_subclip_id = speaker_subclip_dataframe['hash'].tolist()[:3]
+            speakers_id = speaker_subclip_dataframe['speaker'].tolist()[:3]
+            for i in range(0, 3):
+                try:
+                    subclip_hashes.insert(1, (speakers_id[i], speakers_subclip_id[i]))
+                except IndexError:
+                    pass
         return subclip_hashes
 
     def _get_batch_speaker_priority_on_check(self, user, weight=None) -> List[str]:

@@ -11,8 +11,8 @@ auth:
     port: 3306
 #CUDA/CPU
 identification:
-  identification_workers: 10
-  levels: 2
+  identification_workers: 15
+  levels: 1
   device: cuda
 diarization:
   #base tiny medium large large-v2
