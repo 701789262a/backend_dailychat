@@ -3,6 +3,8 @@ from datetime import datetime
 import hashlib
 import threading
 
+import numpy as np
+from scipy.io.wavfile import write
 import flask
 import yaml
 from flask import request
@@ -40,7 +42,9 @@ def addspeaker():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Connected...")
     tmp_file_name = str(int(datetime.utcnow().timestamp()))
     with open(f'tmp{tmp_file_name}.wav', 'wb') as f:
-        request.files['file'].save(f)
+
+        wav_float_32=request.values['wav'].strip("[]").split(',')
+        write(f, 14000, np.array(wav_float_32, dtype=float))
     size = os.stat(f'tmp{tmp_file_name}.wav')
     timestamp_at_start = request.values['timestamp'].split('/')[-1].split('.')[0]
     with open(f'{"tmp" + tmp_file_name + ".wav"}', 'rb') as f:
@@ -50,7 +54,8 @@ def addspeaker():
         with open(f'{clip_hash}.wav', 'wb') as g:
             g.write(file_to_hash_binary)
             g.close()
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size/1024,1)}kB")
+    print(
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size / 1024, 1)}kB")
 
     threading.Thread(target=dedicated_thread_connection, args=(clip_hash, timestamp_at_start,)).start()
     return '', 200
@@ -72,16 +77,24 @@ def change_id():
     return '', 200
 
 
+@app.route('/createUser', methods=['POST'])
+def create_user():
+    middle_to_backend.create_speaker(request.values['new_speaker_name'], request.values['id'])
+    return '', 200
+
+
 @app.route('/getSpeakerUsername', methods=['POST'])
 def get_username():
     print(request.values['user'], request.values['speaker'])
     username = middle_to_backend.get_username_from_speaker(request.values['user'], request.values['speaker'])
     return username, 200
 
+
 @app.route('/deleteSubclip', methods=['POST'])
 def delete_subclip():
     middle_to_backend.delete_subclip(request.values['id'])
-    return '',200
+    return '', 200
+
 
 def dedicated_thread_connection(clip_hash, timestamp_at_start):
     mainapi = MainService(translator, identificator, middle_to_backend)

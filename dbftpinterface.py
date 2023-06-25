@@ -88,25 +88,34 @@ class DbFtpInterface:
                 _ = self.cursor.fetchall()
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Keeping alive remote connections...")
 
-    def create_speaker(self, name) -> Tuple:
+    def create_speaker(self, name, subclip_id = None) -> Tuple:
         """Create a new speaker in [dba.speakers] with given name
 
         Arguments
         ---------
         name: str
-            Chosen name for new speaker
+            Chosen name for new speaker.
+        subclip_id : str
+            Subclip id to change speaker to if API called by selected tile.
 
         Returns
         -------
         speaker : tuple
             Pair containing (id, name) if query is successful, (None, None) otherwise
         """
+
         create_user_query = f'INSERT INTO speaker (name) values ("{name}");'
         try:
             self.cursor.execute(create_user_query)
             self.mysql.commit()
             get_create_user_row_query = f'SELECT * FROM speaker WHERE name = "{name}";'
             create_user_query_result = pd.read_sql(get_create_user_row_query, self.mysql)['id'].tolist()[0]
+
+            # If subclip_id is passed, API is called by message tile and that tile's speaker_id must be changed
+            if subclip_id is not None:
+                change_subclip_speaker = f'UPDATE subclips SET speaker = "{create_user_query_result}" WHERE id = "{subclip_id}"'
+                self.cursor.execute(change_subclip_speaker)
+                self.mysql.commit()
             return create_user_query_result, name
         except mysql.connector.errors.IntegrityError:
             return None, None
@@ -190,6 +199,7 @@ class DbFtpInterface:
             u'text': str(results['text']).strip()
 
         })
+
 
     def change_subclip_user(self, subclip_id, user, new_speaker):
         """Pushes to firebase and local DB a new speaker for selected subclip
@@ -278,7 +288,7 @@ class DbFtpInterface:
         """
 
         # Prepares and send query to MySQL
-        delete_subclip_query = f'DELETE FROM subclip WHERE id = "{id}"'
+        delete_subclip_query = f'DELETE FROM subclips WHERE id = "{id}"'
         try:
             with self._lock:
                 self.cursor.execute(delete_subclip_query)
