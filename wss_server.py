@@ -44,7 +44,7 @@ def addspeaker():
     with open(f'tmp{tmp_file_name}.wav', 'wb') as f:
 
         wav_float_32=request.values['wav'].strip("[]").split(',')
-        write(f, 14000, np.array(wav_float_32, dtype=float))
+        write(f, 14000, np.array(wav_float_32, dtype=np.float32))
     size = os.stat(f'tmp{tmp_file_name}.wav')
     timestamp_at_start = request.values['timestamp'].split('/')[-1].split('.')[0]
     with open(f'{"tmp" + tmp_file_name + ".wav"}', 'rb') as f:
