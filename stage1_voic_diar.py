@@ -58,8 +58,12 @@ class VoiceDiarization:
         # Calling Whisper model to perform diarization. Model returns a list of "segments"
         # where each segment is a sentence (or less than a sentence) divided by pause,
         # punctuation, or speaker distinction.
-        split_transcription = self.model.transcribe(clip_path, suppress_silence=True, temperature=0,
+        try:
+            split_transcription = self.model.transcribe(clip_path, suppress_silence=True, temperature=0,
                                                     no_speech_threshold=0.52).to_dict()
+        except TypeError:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Impossible to detect language")
+            return []
 
         # Loading clip to perform cuts and create sub-clips
         song = AudioSegment.from_wav(clip_path)
