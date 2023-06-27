@@ -96,5 +96,4 @@ class AppFunction:
 
                 # Appending identification and subclip to dict
                 analyzed_subclip[speaker_clip]['subclips'].append([subclip, identification])
-        print("// debug printing before return manage_regular_job")
         return analyzed_subclip

@@ -86,7 +86,6 @@ class DbFtpInterface:
             with self._lock:
                 self.cursor.execute("SHOW DATABASES;")
                 _ = self.cursor.fetchall()
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] Keeping alive remote connections...")
 
     def create_speaker(self, name, subclip_id = None) -> Tuple:
         """Create a new speaker in [dba.speakers] with given name
@@ -288,7 +287,7 @@ class DbFtpInterface:
         """
 
         # Prepares and send query to MySQL
-        delete_subclip_query = f'DELETE FROM subclips WHERE id = "{id}"'
+        delete_subclip_query = f'DELETE FROM subclips WHERE hash = "{id}"'
         try:
             with self._lock:
                 self.cursor.execute(delete_subclip_query)
