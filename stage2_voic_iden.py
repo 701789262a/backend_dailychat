@@ -1,8 +1,9 @@
+import os
 import threading
 from datetime import datetime
 from threading import Thread, Semaphore
 import queue
-
+import shutil
 import numpy as np
 import pandas as pd
 from speechbrain.pretrained import SpeakerRecognition
@@ -84,6 +85,10 @@ class VoiceIdentification:
         # Getting path from tuple
         path = 'tmp_audio_files_save/' + subclip[0] + '.wav'
 
+        # Copying file to prevent thread from locking continuously
+        for worker_id in range(self.identification_workers):
+            shutil.copy(path, f"{path}{worker_id}")
+
         # Getting the prioritized list.
         # TODO: GENERATORE - SI LAVORA IN BATCH, IL PRIMO BATCH VIENE CREATO DA 1 O PIU FILE RAPPRESENTANTI TUTTI GLI
         #  UTENTI E SI DA UNO SCORE A OGNI UTENTE, SI RIFORMANO PIU BATCH RESTRINGENDO LE POSSIBILITA
@@ -101,8 +106,9 @@ class VoiceIdentification:
             # Starting workers and job queue
             self.job_queue = queue.Queue()
             workers = [
-                Thread(target=self.batch_worker, args=(self.job_queue, path, self.ftp_semaphore,self.file_semaphore))
-                for _ in range(self.identification_workers)
+                Thread(target=self.batch_worker,
+                       args=(self.job_queue, path, self.ftp_semaphore, self.file_semaphore, worker_id))
+                for worker_id in range(self.identification_workers)
             ]
 
             # Getting batch job following algorithm calculation
@@ -119,7 +125,7 @@ class VoiceIdentification:
 
             # Populating queue with current batch
             for registered_speaker in registered_speakers_batch:
-                #print(f"Evaluating subclip {registered_speaker}...")
+                # print(f"Evaluating subclip {registered_speaker}...")
 
                 # Populating queue
                 self.job_queue.put(registered_speaker)
@@ -154,7 +160,8 @@ class VoiceIdentification:
         """speaker_id = self.get_speaker_from_hash(ordered_results[0][0])"""
 
         # Insertion into db and FTP server and deleting from local memory
-        self.backend_interface.insert_subclip(subclip, user, int(speaker_id_dataframe_best_match), ordered_results[0][0],
+        self.backend_interface.insert_subclip(subclip, user, int(speaker_id_dataframe_best_match),
+                                              ordered_results[0][0],
                                               timestamp_at_start)
 
         # Temporary dataframe is reset to starting conditions
@@ -163,7 +170,7 @@ class VoiceIdentification:
         return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    def batch_worker(self, q, path, semaphore_ftp,semaphore_file):
+    def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
@@ -177,6 +184,8 @@ class VoiceIdentification:
             Flag to allow max 1 thread to access the FTP subroutine.
         semaphore_file : threading.Semaphore
             Flag to allow max 1 thread to access the FTP subroutine.
+        worker_id : int
+            Integer going from 0 to self.identification_workers. Gives a unique incrementing id to each worker.
         """
 
         # Getting job from queue.
@@ -196,16 +205,17 @@ class VoiceIdentification:
 
         # Match between given subclip and pre-recorded subclip
         try:
-            with semaphore_file:
-                score, prediction = self.verification.verify_files(path, stored_subclip)
+            #with semaphore_file:
+            score, prediction = self.verification.verify_files(f"{path}{worker_id}", stored_subclip)
+            os.remove(f"{path}{worker_id}")
             new_row = pd.DataFrame(
-                                   {
-                                    'hash': registered_speaker[1],
-                                    'speaker_id': registered_speaker[0],
-                                    'score': float(score)
-                                    },
-                                   index=[0]
-                                   )
+                {
+                    'hash': registered_speaker[1],
+                    'speaker_id': registered_speaker[0],
+                    'score': float(score)
+                },
+                index=[0]
+            )
             self.local_analysis_dataframe = pd.concat([
                 new_row,
                 self.local_analysis_dataframe.loc[:]
@@ -217,7 +227,7 @@ class VoiceIdentification:
         except RuntimeError:
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-                f"Error opening {path}, probably corrupted file; thread {threading.get_native_id()}")
+                f"Error opening {path}{worker_id}, probably corrupted file; thread {threading.get_native_id()}")
             pass
 
     def get_subclip_from_ftp(self, registered_speaker) -> str:
