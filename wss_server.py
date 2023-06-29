@@ -42,6 +42,8 @@ translator = VoiceDiarization(config['diarization']['model'], config['diarizatio
 local_job_queue = queue.Queue()
 
 
+
+
 @app.route('/', methods=['POST'])
 def addspeaker():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Connected...")
@@ -62,7 +64,7 @@ def addspeaker():
         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size / 1024, 1)}kB")
 
     local_job_queue.put([clip_hash, timestamp_at_start])
-    # threading.Thread(target=dedicated_thread_connection, args=(clip_hash, timestamp_at_start,)).start()
+
     return '', 200
 
 
@@ -115,9 +117,10 @@ def dedicated_thread():
             f"Speed factor {time_took / clip_length_seconds} (lower is better)")
         print("")
 
-
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
+
+    threading.Thread(target=dedicated_thread).start()
 
     if config['httpserver']['debug']:
         print(
