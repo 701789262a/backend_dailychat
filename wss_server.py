@@ -24,6 +24,7 @@ if config['httpserver']['cuda_debug']:
         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
         f"Running on cuda debug")
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+    os.environ['TORCH_USE_CUDA_DSA'] = '1'
 middle_to_backend = DbFtpInterface()
 middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
                            config['auth']['db']['pass'], config['auth']['db']['port'])
@@ -42,8 +43,7 @@ def addspeaker():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Connected...")
     tmp_file_name = str(int(datetime.utcnow().timestamp()))
     with open(f'tmp{tmp_file_name}.wav', 'wb') as f:
-
-        wav_float_32=request.values['wav'].strip("[]").split(',')
+        wav_float_32 = request.values['wav'].strip("[]").split(',')
         write(f, 14000, np.array(wav_float_32, dtype=np.float32))
     size = os.stat(f'tmp{tmp_file_name}.wav')
     timestamp_at_start = request.values['timestamp'].split('/')[-1].split('.')[0]
