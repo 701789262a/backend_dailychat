@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 import hashlib
 import threading
+import queue
 
 import numpy as np
 from scipy.io.wavfile import write
@@ -37,6 +38,9 @@ translator = VoiceDiarization(config['diarization']['model'], config['diarizatio
                               config['diarization']['dualgpu']
                               if config['diarization']['device'] == 'cuda' else False)
 
+# Jobs are stored in a queue to prevent threads accessing CUDA concurrently
+local_job_queue = queue.Queue()
+
 
 @app.route('/', methods=['POST'])
 def addspeaker():
@@ -57,7 +61,8 @@ def addspeaker():
     print(
         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size / 1024, 1)}kB")
 
-    threading.Thread(target=dedicated_thread_connection, args=(clip_hash, timestamp_at_start,)).start()
+    local_job_queue.put([clip_hash, timestamp_at_start])
+    # threading.Thread(target=dedicated_thread_connection, args=(clip_hash, timestamp_at_start,)).start()
     return '', 200
 
 
@@ -96,15 +101,19 @@ def delete_subclip():
     return '', 200
 
 
-def dedicated_thread_connection(clip_hash, timestamp_at_start):
-    mainapi = MainService(translator, identificator, middle_to_backend)
-    result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
-    print(result)
-    print(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-        f"Job took {time_took}s; "
-        f"Speed factor {time_took / clip_length_seconds} (lower is better)")
-    print("")
+def dedicated_thread():
+    while True:
+        job = local_job_queue.get()
+        clip_hash = job[0]
+        timestamp_at_start = job[1]
+        mainapi = MainService(translator, identificator, middle_to_backend)
+        result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
+        print(result)
+        print(
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+            f"Job took {time_took}s; "
+            f"Speed factor {time_took / clip_length_seconds} (lower is better)")
+        print("")
 
 
 if __name__ == "__main__":
