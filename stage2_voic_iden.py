@@ -201,7 +201,7 @@ class VoiceIdentification:
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore_ftp:
-            stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
+            stored_subclip = await self.get_subclip_from_ftp(registered_speaker[1])
 
         # Match between given subclip and pre-recorded subclip
         try:
@@ -230,7 +230,7 @@ class VoiceIdentification:
                 f"Error opening {path}{worker_id}, probably corrupted file; thread {threading.get_native_id()}")
             pass
 
-    def get_subclip_from_ftp(self, registered_speaker) -> str:
+    async def get_subclip_from_ftp(self, registered_speaker) -> str:
         """Retrieves pre-recorded sub-clip from FTP server.
 
         Arguments
@@ -261,7 +261,7 @@ class VoiceIdentification:
             speaker_subclip_dataframe = pd.read_sql(get_subclip_for_speaker % speaker, self.backend_interface.mysql)
             speakers_subclip_id = speaker_subclip_dataframe['hash'].tolist()[:3]
             speakers_id = speaker_subclip_dataframe['speaker'].tolist()[:3]
-            for i in range(0, 3):
+            for i in range(0, 5):
                 try:
                     subclip_hashes.insert(1, (speakers_id[i], speakers_subclip_id[i]))
                 except IndexError:

@@ -42,8 +42,6 @@ translator = VoiceDiarization(config['diarization']['model'], config['diarizatio
 local_job_queue = queue.Queue()
 
 
-
-
 @app.route('/', methods=['POST'])
 def addspeaker():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Connected...")
@@ -104,7 +102,13 @@ def delete_subclip():
 
 
 def dedicated_thread():
+    print(
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+        f"Main thread started")
     while True:
+        print(
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+            f"Job started!")
         job = local_job_queue.get()
         clip_hash = job[0]
         timestamp_at_start = job[1]
@@ -115,12 +119,14 @@ def dedicated_thread():
             f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
             f"Job took {time_took}s; "
             f"Speed factor {time_took / clip_length_seconds} (lower is better)")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+              f"Queue length is {local_job_queue.qsize()}")
         print("")
 
+
+threading.Thread(target=dedicated_thread).start()
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
-
-    threading.Thread(target=dedicated_thread).start()
 
     if config['httpserver']['debug']:
         print(
