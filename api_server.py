@@ -5,6 +5,7 @@ import threading
 import queue
 
 import numpy as np
+import requests
 from scipy.io.wavfile import write
 import flask
 import yaml
@@ -31,12 +32,6 @@ middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['u
                            config['auth']['db']['pass'], config['auth']['db']['port'])
 middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
                             config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=True)
-identificator = VoiceIdentification(middle_to_backend, 0.25, config['identification']['device'],
-                                    config['identification']['identification_workers'],
-                                    config['identification']['levels'])
-translator = VoiceDiarization(config['diarization']['model'], config['diarization']['device'],
-                              config['diarization']['dualgpu']
-                              if config['diarization']['device'] == 'cuda' else False)
 
 # Jobs are stored in a queue to prevent threads accessing CUDA concurrently
 local_job_queue = queue.Queue()
@@ -44,24 +39,15 @@ local_job_queue = queue.Queue()
 
 @app.route('/', methods=['POST'])
 def addspeaker():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Connected...")
-    tmp_file_name = str(int(datetime.utcnow().timestamp()))
-    with open(f'tmp{tmp_file_name}.wav', 'wb') as f:
-        wav_float_32 = request.values['wav'].strip("[]").split(',')
-        write(f, 14000, np.array(wav_float_32, dtype=np.float32))
-    size = os.stat(f'tmp{tmp_file_name}.wav')
-    timestamp_at_start = request.values['timestamp'].split('/')[-1].split('.')[0]
-    with open(f'{"tmp" + tmp_file_name + ".wav"}', 'rb') as f:
-        file_to_hash_binary = f.read()
-        clip_hash = hashlib.sha256(file_to_hash_binary).hexdigest()
-        f.close()
-        with open(f'{clip_hash}.wav', 'wb') as g:
-            g.write(file_to_hash_binary)
-            g.close()
-    print(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size / 1024, 1)}kB")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Sending to mixer...")
+    params = {
+        'wav':request.values['wav'],
+        'timestamp':request.values['timestamp']
+    }
 
-    local_job_queue.put([clip_hash, timestamp_at_start])
+    requests.post(f"http://{config['mixer']['mixer_ip']}/",params=params)
+
+
 
     return '', 200
 
@@ -101,30 +87,6 @@ def delete_subclip():
     return '', 200
 
 
-def dedicated_thread():
-    print(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-        f"Main thread started")
-    while True:
-        print(
-            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-            f"Job started!")
-        job = local_job_queue.get()
-        clip_hash = job[0]
-        timestamp_at_start = job[1]
-        mainapi = MainService(translator, identificator, middle_to_backend)
-        result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
-        print(result)
-        print(
-            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-            f"Job took {time_took}s; "
-            f"Speed factor {time_took / clip_length_seconds} (lower is better)")
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-              f"Queue length is {local_job_queue.qsize()}")
-        print("")
-
-
-threading.Thread(target=dedicated_thread).start()
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
 

@@ -1,0 +1,5 @@
+node_manager_ip: 192.168.0.113
+node_manager_port: 1256
+mixer_ip : 192.168.0.113
+mixer_port: 1158
+node_port: 1150

@@ -26,3 +26,6 @@ httpserver:
   debug: False
   cuda_debug : True
   threads: 2
+mixer:
+  mixer_ip: 192.168.0.113
+  mixer_port: 1156

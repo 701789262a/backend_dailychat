@@ -1,0 +1,8 @@
+network_address: 192.168.0.0
+subnet_mask: 255.255.255.0
+maintenance_port_node: 21
+mixer_ip: 192.168.0.113
+mixer_port: 1257
+httpserver:
+  ip: 0.0.0.0
+  port: 1256
