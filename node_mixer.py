@@ -32,6 +32,7 @@ def job_from_api():
             # Send to node
             print(f"Sending request to node {node} port {config['node_port']}")
             requests.post(f"http://{node}:{config['node_port']}/job", data=params)
+    return 200
 
 
 @app.route('/unbusy', methods=['GET'])
