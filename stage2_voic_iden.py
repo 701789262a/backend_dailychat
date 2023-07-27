@@ -172,7 +172,7 @@ class VoiceIdentification:
         return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    async def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
+    def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
@@ -203,7 +203,7 @@ class VoiceIdentification:
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore_ftp:
-            stored_subclip = await self.get_subclip_from_ftp(registered_speaker[1])
+            stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
 
         # Match between given subclip and pre-recorded subclip
         try:
