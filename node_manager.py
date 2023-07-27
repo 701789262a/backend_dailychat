@@ -44,7 +44,7 @@ class Manager():
                 for ip in final:
                     if ip in final.keys():
                         table_status[ip]='OPEN'
-                        self.table.add_row(ip,datetime.datetime.fromtimestamp(final[ip]['last_seen']).strftime('%Y-%m-%d %H:%M:%S'),final[ip]['latency'])
+                        self.table.add_row(ip,datetime.datetime.fromtimestamp(int(final[ip]['last_seen'])).strftime('%Y-%m-%d %H:%M:%S'),final[ip]['latency'])
                         os.system('cls')
                         self.console.print(self.table)
             except:
