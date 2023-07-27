@@ -42,7 +42,7 @@ translator = VoiceDiarization(config['diarization']['model'], config['diarizatio
 
 local_job_queue = queue.Queue()
 
-@app.route('/', methods=['POST'])
+@app.route('/job', methods=['POST'])
 def addspeaker():
     # Node receives job from mixer and start processing
     # Start processing
