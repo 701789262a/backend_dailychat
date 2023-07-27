@@ -172,7 +172,7 @@ class VoiceIdentification:
         return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
+    async def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
