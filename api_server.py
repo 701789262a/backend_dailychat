@@ -1,20 +1,13 @@
 import os
 from datetime import datetime
-import hashlib
-import threading
 import queue
 
-import numpy as np
 import requests
-from scipy.io.wavfile import write
 import flask
 import yaml
 from flask import request
 from waitress import serve
 from dbftpinterface import DbFtpInterface
-from mainservice import MainService
-from stage1_voic_diar import VoiceDiarization
-from stage2_voic_iden import VoiceIdentification
 
 UPLOAD_FOLDER = 'httpfiles/'
 app = flask.Flask(__name__)
@@ -45,7 +38,7 @@ def addspeaker():
         'timestamp':request.values['timestamp']
     }
 
-    requests.post(f"http://{config['mixer']['mixer_ip']}/",params=params)
+    requests.post(f"http://{config['mixer']['mixer_ip']}:{config['mixer']['mixer_port']}/",params=params)
 
 
 

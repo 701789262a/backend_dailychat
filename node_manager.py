@@ -32,7 +32,7 @@ class Manager():
             stop = datetime.datetime.now().timestamp()
             if result == 0:
                 # print ("Port is open")
-                final[ip] = {"last_seen":f"{int(datetime.datetime.now().timestamp())}","latency":f"{round((stop-start)*1000,3)} ms"}
+                final[ip] = {"last_seen":f"{datetime.datetime.now().strftime('%Y-%M-%d %H:%m:%S')}","latency":f"{round((stop-start)*1000,3)} ms"}
             sock.close()
         except:
             pass
