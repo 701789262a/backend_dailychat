@@ -11,6 +11,7 @@ import yaml
 from flask import request
 
 from scipy.io.wavfile import write
+from waitress import serve
 
 from dbftpinterface import DbFtpInterface
 from mainservice import MainService
@@ -97,4 +98,11 @@ def dedicated_thread():
 threading.Thread(target=dedicated_thread).start()
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
-    app.run(debug=False, host=config['node']['node_ip'], port=config['node']['node_port'], use_reloader=False)
+    if config['node']['httpserver']['debug']:
+        print(
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+            f"Running on server debug")
+        app.run(debug=False, host=config['node']['node_ip'], port=config['node']['node_port'], use_reloader=False)
+    else:
+        serve(app, host=config['node']['node_ip'], port=config['node']['node_port'],
+              threads=config['node']['httpserver']['threads'])
