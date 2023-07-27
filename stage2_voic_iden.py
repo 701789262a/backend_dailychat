@@ -152,7 +152,7 @@ class VoiceIdentification:
         speaker_id_dataframe_best_match = ordered_result_dataframe.sort_values(
             ascending=False,
             by='score',
-            axis= 1
+            axis=1
         ).index[0]
 
         print(self.local_analysis_dataframe)
@@ -172,7 +172,7 @@ class VoiceIdentification:
         return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    async def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
+    def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
@@ -207,7 +207,7 @@ class VoiceIdentification:
 
         # Match between given subclip and pre-recorded subclip
         try:
-            #with semaphore_file:
+            # with semaphore_file:
             score, prediction = self.verification.verify_files(f"{path}{worker_id}", stored_subclip)
             os.remove(f"{path}{worker_id}")
             new_row = pd.DataFrame(
