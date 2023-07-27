@@ -38,7 +38,7 @@ def addspeaker():
         'timestamp':request.values['timestamp']
     }
 
-    requests.post(f"http://{config['mixer']['mixer_ip']}:{config['mixer']['mixer_port']}/",params=params)
+    requests.post(f"http://{config['mixer']['mixer_ip']}:{config['mixer']['mixer_port']}/",data=params)
 
 
 

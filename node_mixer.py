@@ -30,7 +30,7 @@ def job_from_api():
             }
             node_busy.append(node)
             # Send to node
-            requests.post(f"http://{node}:{config['node_port']}/job", params=params)
+            requests.post(f"http://{node}:{config['node_port']}/job", data=params)
 
 
 @app.route('/unbusy', methods=['GET'])
