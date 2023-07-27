@@ -83,12 +83,12 @@ def get_status():
 def start():
     m = Manager()
     threading.Thread(m.main_job()).start()
-    return 200
+    return '',200
 
 @app.route('/unbusy', methods=['GET'])
 def unbusy():
     requests.get(f'http://{config["mixer_ip"]}:{config["mixer_port"]}/',params=request.remote_addr)
-    return 200
+    return '',200
 
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config_node_manager.yaml", 'r').read())
