@@ -150,9 +150,7 @@ class VoiceIdentification:
 
         # Ordering speaker from the best match to the worst
         speaker_id_dataframe_best_match = ordered_result_dataframe.sort_values(
-            ascending=False,
-            by='score',
-            axis=1
+            ascending=False
         ).index[0]
 
         print(self.local_analysis_dataframe)
@@ -203,7 +201,7 @@ class VoiceIdentification:
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore_ftp:
-            stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
+            stored_subclip = await self.get_subclip_from_ftp(registered_speaker[1])
 
         # Match between given subclip and pre-recorded subclip
         try:
