@@ -95,7 +95,7 @@ def dedicated_thread():
         print("")
 
 
-threading.Thread(target=dedicated_thread).start()
+
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
     if config['node']['httpserver']['debug']:
@@ -106,3 +106,4 @@ if __name__ == "__main__":
     else:
         serve(app, host=config['node']['node_ip'], port=config['node']['node_port'],
               threads=config['node']['httpserver']['threads'])
+    threading.Thread(target=dedicated_thread).start()
