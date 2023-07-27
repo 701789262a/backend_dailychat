@@ -97,4 +97,4 @@ def dedicated_thread():
 threading.Thread(target=dedicated_thread).start()
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
-    app.run(debug=False, host=config['mixer']['mixer_ip'], port=config['mixer']['mixer_port'], use_reloader=False)
+    app.run(debug=False, host=config['node']['node_ip'], port=config['node']['node_port'], use_reloader=False)
