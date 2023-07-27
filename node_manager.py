@@ -32,7 +32,7 @@ class Manager():
             stop = datetime.datetime.now().timestamp()
             if result == 0:
                 # print ("Port is open")
-                final[ip] = {"last_seen":f"{datetime.datetime.now().strftime('%Y-%M-%d %H:%m:%S')}","latency":f"{round((stop-start)*1000,3)} ms"}
+                final[ip] = {"last_seen":f"{int(datetime.datetime.now().timestamp())}","latency":f"{round((stop-start)*1000,3)} ms"}
             sock.close()
         except:
             pass
@@ -44,7 +44,7 @@ class Manager():
                 for ip in final:
                     if ip in final.keys():
                         table_status[ip]='OPEN'
-                        self.table.add_row(ip,final[ip]['last_seen'],final[ip]['latency'])
+                        self.table.add_row(ip,datetime.datetime.fromtimestamp(final[ip]['last_seen']).strftime('%Y-%m-%d %H:%M:%S'),final[ip]['latency'])
                         os.system('cls')
                         self.console.print(self.table)
             except:
