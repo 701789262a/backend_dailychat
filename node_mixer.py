@@ -18,7 +18,7 @@ config = yaml.unsafe_load(open("config_mixer.yaml", 'r').read())
 local_job_queue = queue.Queue()
 
 # Work given
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['POST'])
 def job_from_api():
     node_status = json.loads(requests.get(f"http://{config['node_manager_ip']}:{config['node_manager_port']}/").text)
     for node in node_status:
