@@ -1,18 +1,16 @@
-import hashlib
 import os
-import queue
-import threading
 from datetime import datetime
+import hashlib
+import threading
+import queue
 
-import flask
 import numpy as np
 import requests
+from scipy.io.wavfile import write
+import flask
 import yaml
 from flask import request
-
-from scipy.io.wavfile import write
 from waitress import serve
-
 from dbftpinterface import DbFtpInterface
 from mainservice import MainService
 from stage1_voic_diar import VoiceDiarization
@@ -41,13 +39,12 @@ translator = VoiceDiarization(config['diarization']['model'], config['diarizatio
                               config['diarization']['dualgpu']
                               if config['diarization']['device'] == 'cuda' else False)
 
+# Jobs are stored in a queue to prevent threads accessing CUDA concurrently
 local_job_queue = queue.Queue()
+
 
 @app.route('/job', methods=['POST'])
 def addspeaker():
-    # Node receives job from mixer and start processing
-    # Start processing
-    # When ends, remove from unbusy
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Connected...")
     tmp_file_name = str(int(datetime.utcnow().timestamp()))
     with open(f'tmp{tmp_file_name}.wav', 'wb') as f:
@@ -64,9 +61,7 @@ def addspeaker():
             g.close()
     print(
         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] >>> Passed to threaded; File size: {round(size.st_size / 1024, 1)}kB")
-
     local_job_queue.put([clip_hash, timestamp_at_start])
-
 
     return '', 200
 
@@ -84,26 +79,28 @@ def dedicated_thread():
         mainapi = MainService(translator, identificator, middle_to_backend)
         result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
         print(result)
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+            f"Sending unbusy signal")
+        requests.get(f"http://{config['node_manager']['ip']}:{config['node_manager']['port']}/unbusy")
         print(
             f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
             f"Job took {time_took}s; "
             f"Speed factor {time_took / clip_length_seconds} (lower is better)")
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
               f"Queue length is {local_job_queue.qsize()}")
-
-        requests.get(f"http://{config['mixer']['mixer_ip']}:{config['mixer']['mixer_port']}/unbusy")
         print("")
 
 
-
+process_thread = threading.Thread(target=dedicated_thread)
+process_thread.start()
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
-    if config['node']['httpserver']['debug']:
+
+    if config['httpserver']['debug']:
         print(
             f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
             f"Running on server debug")
         app.run(debug=False, host=config['node']['node_ip'], port=config['node']['node_port'], use_reloader=False)
     else:
         serve(app, host=config['node']['node_ip'], port=config['node']['node_port'],
-              threads=config['node']['httpserver']['threads'])
-    threading.Thread(target=dedicated_thread).start()
+              threads=config['httpserver']['threads'])

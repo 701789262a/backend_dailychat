@@ -87,7 +87,7 @@ def start():
 
 @app.route('/unbusy', methods=['GET'])
 def unbusy():
-    requests.get(f'http://{config["mixer_ip"]}:{config["mixer_port"]}/',params=request.remote_addr)
+    requests.get(f'http://{config["mixer_ip"]}:{config["mixer_port"]}/unbusy',params={'ip':request.remote_addr})
     return '',200
 
 if __name__ == "__main__":

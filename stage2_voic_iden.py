@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 from datetime import datetime
 from threading import Thread, Semaphore
 import queue
@@ -107,7 +108,7 @@ class VoiceIdentification:
             self.job_queue = queue.Queue()
             workers = [
                 Thread(target=self.batch_worker,
-                       args=(self.job_queue, path, self.ftp_semaphore, self.file_semaphore, worker_id))
+                       args=(self.job_queue, path, self.ftp_semaphore, worker_id))
                 for worker_id in range(self.identification_workers)
             ]
 
@@ -170,7 +171,7 @@ class VoiceIdentification:
         return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    def batch_worker(self, q, path, semaphore_ftp, semaphore_file, worker_id):
+    def batch_worker(self, q, path, semaphore_ftp, worker_id):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
@@ -181,8 +182,6 @@ class VoiceIdentification:
         path : str
             Path where the subclip to match is stored.
         semaphore_ftp : threading.Semaphore
-            Flag to allow max 1 thread to access the FTP subroutine.
-        semaphore_file : threading.Semaphore
             Flag to allow max 1 thread to access the FTP subroutine.
         worker_id : int
             Integer going from 0 to self.identification_workers. Gives a unique incrementing id to each worker.
@@ -201,7 +200,8 @@ class VoiceIdentification:
 
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore_ftp:
-            stored_subclip = await self.get_subclip_from_ftp(registered_speaker[1])
+            stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
+        time.sleep(1)
 
         # Match between given subclip and pre-recorded subclip
         try:
@@ -230,7 +230,7 @@ class VoiceIdentification:
                 f"Error opening {path}{worker_id}, probably corrupted file; thread {threading.get_native_id()}")
             pass
 
-    async def get_subclip_from_ftp(self, registered_speaker) -> str:
+    def get_subclip_from_ftp(self, registered_speaker) -> str:
         """Retrieves pre-recorded sub-clip from FTP server.
 
         Arguments

@@ -28,7 +28,7 @@ def job_from_api():
                 'wav': request.values['wav'],
                 'timestamp': request.values['timestamp']
             }
-            # node_busy.append(node)
+            node_busy.append(node)
             # Send to node
             print(f"Sending request to node {node} port {config['node_port']}")
             requests.post(f"http://{node}:{config['node_port']}/job", data=params)
@@ -37,8 +37,9 @@ def job_from_api():
 
 @app.route('/unbusy', methods=['GET'])
 def unbusy():
-    node_busy.remove(request.remote_addr)
-    return 200
+    print(request.values['ip'])
+    node_busy.remove(request.values['ip'])
+    return '',200
 
 
 if __name__ == "__main__":
