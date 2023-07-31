@@ -142,7 +142,7 @@ class DbFtpInterface:
         # printare il path perche non risulta completo il percorso, errore linea 199, sicuramente perche la cartella non
         # e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
         # Stores the tmp .wav subclip into the FTP server
-        self.sftp.put('/tmp_audio_files_save/' + path + '.wav')
+        self.sftp.put(os.getcwd() + '/tmp_audio_files_save/' + path + '.wav')
         self.sftp.chmod(path + '.wav', 644)
         # Removes the tmp .wav subclip from memory
         os.remove('tmp_audio_files_save/' + path + '.wav')
