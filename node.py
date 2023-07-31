@@ -31,7 +31,7 @@ middle_to_backend = DbFtpInterface()
 middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
                            config['auth']['db']['pass'], config['auth']['db']['port'])
 middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
-                            config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=True)
+                            config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=config['auth']['ftp']['keepalive'])
 identificator = VoiceIdentification(middle_to_backend, 0.25, config['identification']['device'],
                                     config['identification']['identification_workers'],
                                     config['identification']['levels'])
