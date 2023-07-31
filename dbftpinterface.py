@@ -18,7 +18,7 @@ def firebase_datastore_login() -> None:
     firebase_admin.initialize_app(cred)
 
 
-class DbFtpInterface:
+class DbSFtpInterface:
     def __init__(self):
         self.firebase = None
         self.sftp = None
@@ -46,7 +46,7 @@ class DbFtpInterface:
                                              database='dba', port=port)
         self.cursor = self.mysql.cursor()
 
-    def ftp_login(self, sftp_server, sftp_user, sftp_password, sftp_port, keepalive=False) -> None:
+    def sftp_login(self, sftp_server, sftp_user, sftp_password, sftp_port, keepalive=False) -> None:
         """Logins into SFTP server and creates an object to interact with.
 
         Arguments
@@ -121,7 +121,7 @@ class DbFtpInterface:
             return None, None
 
     def insert_subclip(self, subclip, first_username, speaker, ordered_results, timestamp_at_start) -> None:
-        """Indexes subclip into database and firebase-backend and stores into FTP server.
+        """Indexes subclip into database and firebase-backend and stores into SFTP server.
         Deletes the tmp file after the process is over.
 
         Arguments
@@ -141,7 +141,7 @@ class DbFtpInterface:
         path = subclip[0]
         # printare il path perche non risulta completo il percorso, errore linea 199, sicuramente perche la cartella non
         # e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
-        # Stores the tmp .wav subclip into the FTP server
+        # Stores the tmp .wav subclip into the SFTP server
         self.sftp.put(os.getcwd() + '/tmp_audio_files_save/' + path + '.wav')
         self.sftp.chmod(path + '.wav', 644)
         # Removes the tmp .wav subclip from memory

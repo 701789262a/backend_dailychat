@@ -18,14 +18,14 @@ pd.options.mode.chained_assignment = None
 class VoiceIdentification:
     def __init__(self, backend_interface, threshold, device, identification_workers, n_level):
         """Initialization method, selects pretrained model from speechbrain,
-        connect to FTP indicated server. Connects to mysql db and Stores the
+        connect to SFTP indicated server. Connects to mysql db and Stores the
         threshold for which the identification should return True.
         Warning are suppressed to handle the fact that pandas officially only supports SQLAlchemy.
 
         Arguments
         ---------
-        backend_interface : DbFtpInterface
-            Communicator class for database and FTP server
+        backend_interface : DbSFtpInterface
+            Communicator class for database and SFTP server
         threshold : float
             Threshold over which a speaker should be considered matched with
             the given subclip.
@@ -37,7 +37,7 @@ class VoiceIdentification:
             Number o level (batches) to perform the identification on.
 
         """
-        self.ftp_semaphore = None
+        self.sftp_semaphore = None
         self.file_semaphore = None
         self.job_queue = None
         self.local_score = dict()
@@ -58,7 +58,7 @@ class VoiceIdentification:
         """For a given subclip, it evaluates it against a list of
         pre-recorded prioritized (most used, most recent, added by)
         sub-clips and returns the best match.
-        It inserts the subclips into FTP and db
+        It inserts the subclips into SFTP and db
 
         Arguments
         ---------
@@ -98,7 +98,7 @@ class VoiceIdentification:
         #  LA SINGOLA SUBCLIP. POSSIBILITA DI FARE THREAD ALL INTERNO DI UN BATCH (SI ELABORANO TUTTE LE SUBCLIP
         #  IN PARALLELO E SI ASPETTA LA FINE DI TUTTI I THREAD PER PASSARE AL PROSSIMO BATCH)
 
-        self.ftp_semaphore = Semaphore(1)
+        self.sftp_semaphore = Semaphore(1)
         self.file_semaphore = Semaphore(1)
 
         # Working through batch to decrease the amount of subclips needed
@@ -108,7 +108,7 @@ class VoiceIdentification:
             self.job_queue = queue.Queue()
             workers = [
                 Thread(target=self.batch_worker,
-                       args=(self.job_queue, path, self.ftp_semaphore, worker_id))
+                       args=(self.job_queue, path, self.sftp_semaphore, worker_id))
                 for worker_id in range(self.identification_workers)
             ]
 
@@ -160,7 +160,7 @@ class VoiceIdentification:
         # Retrieves speaker id from db // deprecated
         """speaker_id = self.get_speaker_from_hash(ordered_results[0][0])"""
 
-        # Insertion into db and FTP server and deleting from local memory
+        # Insertion into db and SFTP server and deleting from local memory
         self.backend_interface.insert_subclip(subclip, user, int(speaker_id_dataframe_best_match),
                                               ordered_results[0][0],
                                               timestamp_at_start)
@@ -171,7 +171,7 @@ class VoiceIdentification:
         return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
-    def batch_worker(self, q, path, semaphore_ftp, worker_id):
+    def batch_worker(self, q, path, semaphore_sftp, worker_id):
         """Job to be executed in parallel for identification of speaker.
 
         Arguments
@@ -181,8 +181,8 @@ class VoiceIdentification:
             to signal a stop (queue end).
         path : str
             Path where the subclip to match is stored.
-        semaphore_ftp : threading.Semaphore
-            Flag to allow max 1 thread to access the FTP subroutine.
+        semaphore_sftp : threading.Semaphore
+            Flag to allow max 1 thread to access the SFTP subroutine.
         worker_id : int
             Integer going from 0 to self.identification_workers. Gives a unique incrementing id to each worker.
         """
@@ -198,9 +198,9 @@ class VoiceIdentification:
             f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}]"
             f" Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
 
-        # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
-        with semaphore_ftp:
-            stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
+        # Retrieving the pre-recorded subclip from the SFTP server (file name = hash).
+        with semaphore_sftp:
+            stored_subclip = self.get_subclip_from_sftp(registered_speaker[1])
         time.sleep(0.3)
 
         # Match between given subclip and pre-recorded subclip
@@ -230,8 +230,8 @@ class VoiceIdentification:
                 f"Error opening {path}{worker_id}, probably corrupted file; thread {threading.get_native_id()}")
             pass
 
-    def get_subclip_from_ftp(self, registered_speaker) -> str:
-        """Retrieves pre-recorded sub-clip from FTP server.
+    def get_subclip_from_sftp(self, registered_speaker) -> str:
+        """Retrieves pre-recorded sub-clip from SFTP server.
 
         Arguments
         ---------

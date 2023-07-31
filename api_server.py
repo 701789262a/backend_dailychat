@@ -7,7 +7,7 @@ import flask
 import yaml
 from flask import request
 from waitress import serve
-from dbftpinterface import DbFtpInterface
+from dbftpinterface import DbSFtpInterface
 
 UPLOAD_FOLDER = 'httpfiles/'
 app = flask.Flask(__name__)
@@ -20,10 +20,10 @@ if config['httpserver']['cuda_debug']:
         f"Running on cuda debug")
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
-middle_to_backend = DbFtpInterface()
+middle_to_backend = DbSFtpInterface()
 middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
                            config['auth']['db']['pass'], config['auth']['db']['port'])
-middle_to_backend.ftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
+middle_to_backend.sftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
                             config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=True)
 
 # Jobs are stored in a queue to prevent threads accessing CUDA concurrently
