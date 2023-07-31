@@ -245,8 +245,8 @@ class VoiceIdentification:
             Path of locally stored temporary .wav file.
 
         """
-        self.backend_interface.ftp.retrbinary("RETR " + registered_speaker + '.wav',
-                                              open('tmp_audio_files/' + registered_speaker + '.wav', 'wb').write)
+        self.backend_interface.sftp.get(remotepath=registered_speaker + '.wav',
+                                        localpath='tmp_audio_files/' + registered_speaker + '.wav')
 
         return 'tmp_audio_files/' + registered_speaker + '.wav'
 

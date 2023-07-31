@@ -4,7 +4,7 @@ import ftplib
 import threading
 import time
 from datetime import datetime
-
+import pysftp
 import firebase_admin
 import mysql.connector
 from typing import Tuple
@@ -21,7 +21,7 @@ def firebase_datastore_login() -> None:
 class DbFtpInterface:
     def __init__(self):
         self.firebase = None
-        self.ftp = None
+        self.sftp = None
         self.cursor = None
         self.mysql = None
 
@@ -46,32 +46,28 @@ class DbFtpInterface:
                                              database='dba', port=port)
         self.cursor = self.mysql.cursor()
 
-    def ftp_login(self, ftp_server, ftp_user, ftp_password, ftp_port, keepalive=False) -> None:
-        """Logins into FTP server and creates an object to interact with.
+    def ftp_login(self, sftp_server, sftp_user, sftp_password, sftp_port, keepalive=False) -> None:
+        """Logins into SFTP server and creates an object to interact with.
 
         Arguments
         ---------
-        ftp_server : str
-            IP Address for FTP server.
-        ftp_user : str
-            Username for FTP server.
-        ftp_password : str
-            Password for FTP server.
-        ftp_port : int
-            Port for FTP server.
+        sftp_server : str
+            IP Address for SFTP server.
+        sftp_user : str
+            Username for SFTP server.
+        sftp_password : str
+            Password for SFTP server.
+        sftp_port : int
+            Port for SFTP server.
         keepalive : bool
             Flag to control keepalive, if True, a thread is started than keeps the collection alive
         """
 
-        self.ftp = ftplib.FTP()
-        self.ftp.connect(host=ftp_server, port=ftp_port)
-        self.ftp.login(user=ftp_user, passwd=ftp_password)
-        self.ftp.cwd('subclips')
-        self.ftp.set_pasv(True)
+        self.sftp = pysftp.Connection(host=sftp_server,username=sftp_user,password=sftp_password,port=sftp_port)
+        self.sftp.cwd('subclips')
 
         # Only for testing, folder with trial subclips
-        self.ftp.cwd('trial')
-
+        self.sftp.cwd('trial')
         # Starts keepalive thread
         if keepalive:
             threading.Thread(target=self.keepalive).start()
@@ -82,7 +78,7 @@ class DbFtpInterface:
 
         while True:
             time.sleep(30)
-            self.ftp.sendcmd("NOOP")
+            self.sftp.sendcmd("NOOP")
             with self._lock:
                 self.cursor.execute("SHOW DATABASES;")
                 _ = self.cursor.fetchall()
@@ -141,8 +137,8 @@ class DbFtpInterface:
         # printare il path perche non risulta completo il percorso, errore linea 199, sicuramente perche la cartella non
         # e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
         # Stores the tmp .wav subclip into the FTP server
-        self.ftp.storbinary('STOR ' + path + '.wav', open('tmp_audio_files_save/' + path + '.wav', 'rb'))
-        self.ftp.sendcmd('SITE CHMOD 644 ' + path + '.wav')
+        self.sftp.put('/tmp_audio_files_save/' + path + '.wav')
+        self.sftp.chmod(path + '.wav',644)
         # Removes the tmp .wav subclip from memory
         os.remove('tmp_audio_files_save/' + path + '.wav')
 
