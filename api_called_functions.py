@@ -2,7 +2,7 @@ import datetime
 
 from stage2_voic_iden import VoiceIdentification
 from stage1_voic_diar import VoiceDiarization
-from dbftpinterface import DbFtpInterface
+from dbftpinterface import DbSFtpInterface
 import yaml
 
 
