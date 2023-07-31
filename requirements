@@ -12,3 +12,4 @@ flask
 firebase_admin
 websockets
 waitress
+pysftp

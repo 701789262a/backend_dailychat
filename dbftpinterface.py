@@ -63,7 +63,12 @@ class DbFtpInterface:
             Flag to control keepalive, if True, a thread is started than keeps the collection alive
         """
 
-        self.sftp = pysftp.Connection(host=sftp_server,username=sftp_user,password=sftp_password,port=sftp_port)
+        # Disabling host key check
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys = None
+
+        self.sftp = pysftp.Connection(host=sftp_server, username=sftp_user, password=sftp_password, port=sftp_port,
+                                      cnopts=cnopts)
         self.sftp.cwd('subclips')
 
         # Only for testing, folder with trial subclips
@@ -83,7 +88,7 @@ class DbFtpInterface:
                 self.cursor.execute("SHOW DATABASES;")
                 _ = self.cursor.fetchall()
 
-    def create_speaker(self, name, subclip_id = None) -> Tuple:
+    def create_speaker(self, name, subclip_id=None) -> Tuple:
         """Create a new speaker in [dba.speakers] with given name
 
         Arguments
@@ -138,7 +143,7 @@ class DbFtpInterface:
         # e stata inserita prima, bisogna metterla a mano - non male - tramite percorso hard-coded, sempre in linea 199
         # Stores the tmp .wav subclip into the FTP server
         self.sftp.put('/tmp_audio_files_save/' + path + '.wav')
-        self.sftp.chmod(path + '.wav',644)
+        self.sftp.chmod(path + '.wav', 644)
         # Removes the tmp .wav subclip from memory
         os.remove('tmp_audio_files_save/' + path + '.wav')
 
@@ -194,7 +199,6 @@ class DbFtpInterface:
             u'text': str(results['text']).strip()
 
         })
-
 
     def change_subclip_user(self, subclip_id, user, new_speaker):
         """Pushes to firebase and local DB a new speaker for selected subclip
@@ -292,4 +296,3 @@ class DbFtpInterface:
 
             # If id is not present, defaults to "None"
             return "None"
-
