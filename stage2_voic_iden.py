@@ -201,7 +201,7 @@ class VoiceIdentification:
         # Retrieving the pre-recorded subclip from the FTP server (file name = hash).
         with semaphore_ftp:
             stored_subclip = self.get_subclip_from_ftp(registered_speaker[1])
-        time.sleep(1)
+        time.sleep(2)
 
         # Match between given subclip and pre-recorded subclip
         try:
