@@ -199,7 +199,8 @@ class VoiceIdentification:
             f" Pid {threading.get_native_id()}\tanalysing {registered_speaker}...")
 
         # Retrieving the pre-recorded subclip from the SFTP server (file name = hash).
-        stored_subclip = self.get_subclip_from_sftp(registered_speaker[1])
+        with semaphore_sftp:
+            stored_subclip = self.get_subclip_from_sftp(registered_speaker[1])
 
         # Match between given subclip and pre-recorded subclip
         try:
