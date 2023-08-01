@@ -53,6 +53,7 @@ class VoiceDiarization:
         -------
         subclips_hash : list of list
             List of names and segment given to saved subclips
+
         """
 
         # Calling Whisper model to perform diarization. Model returns a list of "segments"

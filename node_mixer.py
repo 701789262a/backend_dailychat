@@ -38,7 +38,10 @@ def job_from_api():
 @app.route('/unbusy', methods=['GET'])
 def unbusy():
     print(request.values['ip'])
-    node_busy.remove(request.values['ip'])
+    try:
+        node_busy.remove(request.values['ip'])
+    except:
+        pass
     return '',200
 
 

@@ -95,6 +95,7 @@ process_thread = threading.Thread(target=dedicated_thread)
 process_thread.start()
 if __name__ == "__main__":
     config = yaml.unsafe_load(open("config.yaml", 'r').read())
+    requests.get(f"http://{config['node_manager']['ip']}:{config['node_manager']['port']}/unbusy")
 
     if config['httpserver']['debug']:
         print(

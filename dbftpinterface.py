@@ -1,6 +1,5 @@
 import json
 import os
-import ftplib
 import threading
 import time
 from datetime import datetime
@@ -14,6 +13,9 @@ from firebase_admin import credentials, firestore
 
 
 def firebase_datastore_login() -> None:
+    """Loading firebase certificate and keys
+    """
+
     cred = credentials.Certificate("firebase_certificate/guardan-audio-79f666b3f835.json")
     firebase_admin.initialize_app(cred)
 
