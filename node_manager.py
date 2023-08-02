@@ -8,94 +8,186 @@ import yaml
 from flask import request
 from netaddr import IPNetwork
 import socket
-from rich.live import Live
 from rich.console import Console
 from rich.table import Table
 
 import flask
+
+# Node manager Flask app is started
 app = flask.Flask(__name__)
+
+# Final dictionary containing ip value
 final = {}
-table_status={}
-class Manager():
+
+
+def check_port(ip, port):
+    """Thread function to check one single IP on a given port.
+
+    Arguments
+    ---------
+    ip : str
+        IP given as a string "aaa.bbb.ccc.ddd"
+    port : int
+        Port to check on given ip
+
+    """
+
+    try:
+        # Initializing socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        time_start = datetime.datetime.now().timestamp()
+
+        # Connecting to given IP
+        result = sock.connect_ex((ip, port))
+        time_stop = datetime.datetime.now().timestamp()
+
+        # Connect_ex returns 0 if connection is successful
+        if result == 0:
+            # IP is added/updated within dictionary
+            final[ip] = {
+                "last_seen": f"{int(datetime.datetime.now().timestamp())}",
+                "latency": f"{round((time_stop - time_start) * 1000, 3)} ms"
+            }
+
+        # Socket is closed
+        sock.close()
+
+    # In case of error (e.g. timeout) pass
+    # TODO: specify except conditions
+    except:
+        pass
+
+
+class Manager:
     def __init__(self):
+
+        # Config will be assigned as YAML config file
         self.config = None
+
+        # Console will be assigned as rich console
         self.console = None
+
+        # Table will contain rich table
         self.table = None
 
-    def check_port(self,ip, port):
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP
-            #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
-            socket.setdefaulttimeout(2.0) # seconds (float)
-            start = datetime.datetime.now().timestamp()
-            result = sock.connect_ex((ip,port))
-            stop = datetime.datetime.now().timestamp()
-            if result == 0:
-                # print ("Port is open")
-                final[ip] = {"last_seen":f"{int(datetime.datetime.now().timestamp())}","latency":f"{round((stop-start)*1000,3)} ms"}
-            sock.close()
-        except:
-            pass
-
     def display_table(self):
+        """Thread function that constantly refresh console with updated table.
+        """
+
         while True:
+
+            # Table is updated every 4 seconds
             time.sleep(4)
             try:
+
+                # Every IP in final dict (IPs with valid connection are stored there) is added to table
                 for ip in final:
                     if ip in final.keys():
-                        table_status[ip]='OPEN'
-                        self.table.add_row(ip,datetime.datetime.fromtimestamp(int(final[ip]['last_seen'])).strftime('%Y-%m-%d %H:%M:%S'),final[ip]['latency'])
+                        # Table is updated
+                        self.table.add_row(
+                            ip,
+                            datetime.datetime.fromtimestamp(int(final[ip]['last_seen'])).strftime('%Y-%m-%d %H:%M:%S'),
+                            final[ip]['latency'])
+
+                        # Terminal is cleared and new table is pushed to console
                         os.system('cls')
                         self.console.print(self.table)
             except:
                 pass
 
-
     def main_job(self):
+        """Routine started when /start API endpoint is invoked.
+        Every 2 seconds a socket connection check each address on the subnet of the provided network address is
+        initialized.
+
+        """
+
+        # Loading rick console and config from .yaml file
         self.console = Console()
         self.config = yaml.unsafe_load(open("config_node_manager.yaml", 'r').read())
 
+        # Initializing network address, subnet mask and port
         network_address = self.config['network_address']
         subnet_mask = self.config['subnet_mask']
         port = self.config['maintenance_port_node']
+
+        # Converting subnet mask to CIDR
         subnet_mask_bin = ""
         for tip in subnet_mask.split('.'):
-            subnet_mask_bin += format(int(tip),'08b')
+            subnet_mask_bin += format(int(tip), '08b')
         cidr = str(subnet_mask_bin.count('1'))
+
+        # Table display thread is started
         threading.Thread(target=self.display_table).start()
+
+        # Core infinite loop that runs every 2 seconds
         while True:
             time.sleep(2)
+
+            # Table is reinitialized every time (not possible to delete rows manually)
             self.table = Table(title='Online nodes')
             self.table.add_column('IP address')
             self.table.add_column('Last seen')
             self.table.add_column('Ping')
-            for ip in IPNetwork('/'.join([network_address,cidr])):
-                if not str(ip) == str(IPNetwork('/'.join([network_address,cidr])).broadcast) and not str(ip) == str(IPNetwork('/'.join([network_address,cidr])).network):
-                    threading.Thread(target=self.check_port, args=[str(ip), port]).start()
 
+            # Network address and CIDR given to IPNetwork to iterate through all IPs on IP/cidr
+            for ip in IPNetwork('/'.join([network_address, cidr])):
+
+                # Excluding broadcast ip and network ip from list
+                if not str(ip) == str(IPNetwork('/'.join([network_address, cidr])).broadcast) and not \
+                        str(ip) == str(IPNetwork('/'.join([network_address, cidr])).network):
+                    # Thread to scan one single IP is started. Results will be pushed to final dictionary
+                    threading.Thread(target=check_port, args=[str(ip), port]).start()
 
 
 @app.route('/', methods=['GET'])
 def get_status():
+    """API endpoint to return status to node_mixer.
+
+    Returns
+    -------
+    res : tuple
+        Node status and default HTTP status code 200
+    """
+
     return final, 200
+
 
 @app.route('/start', methods=['GET'])
 def start():
+    """API endpoint to start main_job routine on a thread.
+
+    Returns
+    -------
+    res : tuple
+        Empty page and default HTTP status code 200
+    """
     m = Manager()
     threading.Thread(m.main_job()).start()
-    return '',200
+    return '', 200
+
 
 @app.route('/unbusy', methods=['GET'])
 def unbusy():
-    requests.get(f'http://{config["mixer_ip"]}:{config["mixer_port"]}/unbusy',params={'ip':request.remote_addr})
-    return '',200
+    """API endpoint to unbusy given ip from mixer local variable.
+
+    API Parameters
+    ---------
+    remote_addr : str
+        Remote IP address is used as an identifier for node
+
+    Returns
+    -------
+    res : tuple
+        Empty page and default HTTP status code 200
+
+    """
+    requests.get(f'http://{config["mixer_ip"]}:{config["mixer_port"]}/unbusy', params={'ip': request.remote_addr})
+    return '', 200
+
 
 if __name__ == "__main__":
+    # Loading config for running app on chosen IP:port
     config = yaml.unsafe_load(open("config_node_manager.yaml", 'r').read())
 
     app.run(debug=False, host=config['httpserver']['ip'], port=config['httpserver']['port'], use_reloader=False)
-
-
-
-
-

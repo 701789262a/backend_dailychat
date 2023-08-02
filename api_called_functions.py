@@ -61,7 +61,7 @@ class AppFunction:
 
         Arguments
         ---------
-        sender_user_id : int or str
+        sender_user_id : int
             User id who sent the job request.
         speaker_clip : str
             Path for the .wav clip.

@@ -286,6 +286,11 @@ class DbSFtpInterface:
         ---------
         id : str
             Subclip id to delete
+
+        Returns
+        -------
+        res : str
+            "None" if id is not present in db
         """
 
         # Prepares and send query to MySQL

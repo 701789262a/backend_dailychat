@@ -18,20 +18,12 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Loading settings from config.yaml
 config = yaml.unsafe_load(open("config.yaml", 'r').read())
 
-# Optional flag used on debug
-if config['httpserver']['cuda_debug']:
-    print(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-        f"Running on cuda debug")
-    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    os.environ['TORCH_USE_CUDA_DSA'] = '1'
-
 # Initializing MySQL/SFTP connections
 middle_to_backend = DbSFtpInterface()
 middle_to_backend.db_login(config['auth']['db']['host'], config['auth']['db']['user'],
                            config['auth']['db']['pass'], config['auth']['db']['port'])
 middle_to_backend.sftp_login(config['auth']['ftp']['host'], config['auth']['ftp']['user'],
-                             config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=True)
+                             config['auth']['ftp']['pass'], config['auth']['ftp']['port'], keepalive=config['auth']['ftp']['keepalive'])
 
 # Jobs are stored in a queue to prevent threads accessing CUDA concurrently
 local_job_queue = queue.Queue()
