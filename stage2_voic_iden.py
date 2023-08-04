@@ -203,10 +203,25 @@ class VoiceIdentification:
             stored_subclip = self.get_subclip_from_sftp(registered_speaker[1])
         time.sleep(0.5)
 
-        # Match between given subclip and pre-recorded subclip
+        # Match between given subclip and pre-recorded subclip,
+        for i in range(5):
+            try:
+                # with semaphore_file:
+                score, prediction = self.verification.verify_files(f"{path}{worker_id}", stored_subclip)
+                break
+            except RuntimeError:
+                if i < 5:
+                    print(
+                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+                        f"Error opening {path}{worker_id}, probably file not loaded yet - retrying; thread {threading.get_native_id()}")
+                else:
+                    print(
+                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
+                        f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance broken; "
+                        f"thread {threading.get_native_id()}")
+
+
         try:
-            # with semaphore_file:
-            score, prediction = self.verification.verify_files(f"{path}{worker_id}", stored_subclip)
             os.remove(f"{path}{worker_id}")
             new_row = pd.DataFrame(
                 {
@@ -227,7 +242,8 @@ class VoiceIdentification:
         except RuntimeError:
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-                f"Error opening {path}{worker_id}, probably corrupted file; thread {threading.get_native_id()}")
+                f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance broken; "
+                f"thread {threading.get_native_id()}")
             pass
 
     def get_subclip_from_sftp(self, registered_speaker) -> str:
