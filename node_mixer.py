@@ -1,6 +1,8 @@
 import datetime
 import json
 import queue
+import time
+
 import flask
 import requests
 import yaml
@@ -39,30 +41,38 @@ def job_from_api():
 
     """
 
-    # Getting status sample from node manager
-    node_status = json.loads(requests.get(f"http://{config['node_manager_ip']}:{config['node_manager_port']}/").text)
+    # Trying to locate free online node until one is found
+    trials_counter = 1
+    while True:
 
-    # Iterating through all time (from node manager startup) active nodes
-    for node in node_status:
+        # Getting status sample from node manager
+        node_status = json.loads(
+            requests.get(f"http://{config['node_manager_ip']}:{config['node_manager_port']}/").text)
 
-        # Checking if node is not currently flagged as busy and if the last polling was done within 20 seconds
-        if node not in node_busy and \
-                int(datetime.datetime.now().timestamp()) - int(node_status[node]['last_seen']) <= 20:
+        # Iterating through all time (from node manager startup) active nodes
+        for node in node_status:
 
-            # Preparing parameters to send
-            params = {
-                'wav': request.values['wav'],
-                'timestamp': request.values['timestamp']
-            }
+            # Checking if node is not currently flagged as busy and if the last polling was done within 20 seconds
+            if node not in node_busy and \
+                    int(datetime.datetime.now().timestamp()) - int(node_status[node]['last_seen']) <= 20:
+                # Preparing parameters to send
+                params = {
+                    'wav': request.values['wav'],
+                    'timestamp': request.values['timestamp']
+                }
 
-            # Flagging node as busy
-            node_busy.append(node)
+                # Flagging node as busy
+                node_busy.append(node)
 
-            # Sending job to node
-            print(f"Sending request to node {node} port {config['node_port']}")
-            requests.post(f"http://{node}:{config['node_port']}/job", data=params)
+                # Sending job to node
+                print(f"Sending request to node {node} port {config['node_port']}")
+                requests.post(f"http://{node}:{config['node_port']}/job", data=params)
 
-            return '', 200
+                return '', 200
+
+        print(f"Trial number {trials_counter}, node not found. Retrying in 5 seconds")
+        trials_counter += 1
+        time.sleep(5)
 
 
 @app.route('/unbusy', methods=['GET'])
