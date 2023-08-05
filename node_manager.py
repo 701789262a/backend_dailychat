@@ -102,20 +102,13 @@ class Manager:
 
         """
 
-        # Loading rick console and config from .yaml file
+        # Loading rich console and config from .yaml file
         self.console = Console()
         self.config = yaml.unsafe_load(open("config_node_manager.yaml", 'r').read())
 
-        # Initializing network address, subnet mask and port
-        network_address = self.config['network_address']
-        subnet_mask = self.config['subnet_mask']
+        # Initializing network cidr blocks and port
         port = self.config['maintenance_port_node']
-
-        # Converting subnet mask to CIDR
-        subnet_mask_bin = ""
-        for tip in subnet_mask.split('.'):
-            subnet_mask_bin += format(int(tip), '08b')
-        cidr = str(subnet_mask_bin.count('1'))
+        cidr_blocks = self.config['cidr_blocks']
 
         # Table display thread is started
         threading.Thread(target=self.display_table).start()
@@ -130,14 +123,17 @@ class Manager:
             self.table.add_column('Last seen')
             self.table.add_column('Ping')
 
-            # Network address and CIDR given to IPNetwork to iterate through all IPs on IP/cidr
-            for ip in IPNetwork('/'.join([network_address, cidr])):
+            # Generating address spaces (generating an IPNetwork iterable for every cidr_blocks given)
+            address_spaces = [IPNetwork(cidr_block) for cidr_block in cidr_blocks]
 
-                # Excluding broadcast ip and network ip from list
-                if not str(ip) == str(IPNetwork('/'.join([network_address, cidr])).broadcast) and not \
-                        str(ip) == str(IPNetwork('/'.join([network_address, cidr])).network):
-                    # Thread to scan one single IP is started. Results will be pushed to final dictionary
-                    threading.Thread(target=check_port, args=[str(ip), port]).start()
+            # Iterating through cidr_blocks
+            for address_space in address_spaces:
+
+                # Iterating through every IP
+                for ip in address_space.iter_hosts():
+
+                        # Thread to scan one single IP is started. Results will be pushed to final dictionary
+                        threading.Thread(target=check_port, args=[str(ip), port]).start()
 
 
 @app.route('/', methods=['GET'])
