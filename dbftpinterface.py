@@ -85,7 +85,6 @@ class DbSFtpInterface:
 
         while True:
             time.sleep(30)
-            self.sftp.sendcmd("NOOP")
             with self._lock:
                 self.cursor.execute("SHOW DATABASES;")
                 _ = self.cursor.fetchall()
