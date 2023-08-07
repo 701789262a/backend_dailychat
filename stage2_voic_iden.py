@@ -275,10 +275,8 @@ class VoiceIdentification:
         subclip_hashes = []
         for speaker in speakers_id:
             speaker_subclip_dataframe = pd.read_sql(get_subclip_for_speaker % speaker, self.backend_interface.mysql)
-            print(speaker_subclip_dataframe)
             speakers_subclip_id = speaker_subclip_dataframe['hash'].tolist()[:3]
             speakers_id = speaker_subclip_dataframe['speaker'].tolist()[:3]
-            print(speakers_subclip_id,speakers_id)
             for i in range(0, 5):
                 try:
                     subclip_hashes.insert(1, (speakers_id[i], speakers_subclip_id[i]))
