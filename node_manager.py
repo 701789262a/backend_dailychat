@@ -90,7 +90,11 @@ class Manager:
                             final[ip]['latency'])
 
                         # Terminal is cleared and new table is pushed to console
-                        os.system('cls')
+                        if os.name == 'nt':
+                            os.system('cls')
+                        elif os.name == 'posix':
+                            os.system('clear')
+
                         self.console.print(self.table)
             except:
                 pass
