@@ -41,6 +41,8 @@ class VoiceIdentification:
         self.file_semaphore = None
         self.job_queue = None
         self.local_score = dict()
+        self.instance_broken_101 = False
+
         # Loading pretrained identification model
         self.verification = SpeakerRecognition.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                                             savedir="pretrained_models/spkrec-ecapa-voxceleb",
@@ -72,6 +74,9 @@ class VoiceIdentification:
 
         Returns
         -------
+        success: int
+            0 if no problems encountered; error code elsewhere:
+                101 - problem during batch work (typically couldn't fetch with SFTP)
         hash : str
             Hash related to the best possible match.
         speaker_id : str
@@ -143,6 +148,10 @@ class VoiceIdentification:
             for worker in workers:
                 worker.join()
 
+        # Check if there was a problem during batch work (typically couldn't fetch from SFTP)
+        if self.instance_broken_101:
+            return 101
+
         # Creating a pandas Series with average score for every speaker
         ordered_result_dataframe = self.local_analysis_dataframe.groupby(
             self.local_analysis_dataframe.speaker_id).apply(lambda x: np.mean(x.score))
@@ -168,7 +177,7 @@ class VoiceIdentification:
         # Temporary dataframe is reset to starting conditions
         self.local_analysis_dataframe = self.local_analysis_dataframe[0:0]
 
-        return ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
+        return 0, ordered_results[0][0], int(speaker_id_dataframe_best_match), float(ordered_results[0][1]), float(
             ordered_results[0][1]) > self.threshold
 
     def batch_worker(self, q, path, semaphore_sftp, worker_id):
@@ -242,8 +251,9 @@ class VoiceIdentification:
         except RuntimeError:
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-                f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance broken; "
+                f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance will break; "
                 f"thread {threading.get_native_id()}")
+            self.instance_broken_101 = True
             pass
 
     def get_subclip_from_sftp(self, registered_speaker) -> str:

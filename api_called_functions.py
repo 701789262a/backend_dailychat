@@ -70,8 +70,8 @@ class AppFunction:
 
         Returns
         -------
-        analyzed_subclip : dict
-            Dictionary with subclip diarization and speaker identification.
+        analyzed_subclip : dict or int
+            Dictionary with subclip diarization and speaker identification or error code if occurred
         """
 
         # Transcribes(diarization) the clip given and divides it into sublips(segments).
@@ -90,6 +90,9 @@ class AppFunction:
             if subclip[1]['no_speech_prob'] < self.config['diarization']['no_speech_prob']:
                 identification = self.identificator.identify_speaker(subclip, sender_user_id, timestamp_at_start)
 
+                if identification[0] != 0:
+                    return identification[0] ,''
+
                 # Appending identification and subclip to dict
                 analyzed_subclip[speaker_clip]['subclips'].append([subclip, identification])
-        return analyzed_subclip
+        return 0, analyzed_subclip

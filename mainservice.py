@@ -22,14 +22,16 @@ class MainService:
 
         Returns
         -------
-        json_result, time_took, clip_length : tuple
+        status_code, json_result, time_took, clip_length : tuple or int
             Results contains JSON result, time took for job and the total length (in seconds) of the clip.
         """
 
         time_start = datetime.datetime.now().timestamp()
 
         # Job is processed and result as a json string is received
-        result = self.api.manage_regular_job(user, clip_hash + ".wav", timestamp_at_start)
+        status, result = self.api.manage_regular_job(user, clip_hash + ".wav", timestamp_at_start)
+        if status !=0:
+            return status
         json_result = json.dumps(result)
 
         time_end = datetime.datetime.now().timestamp()
@@ -43,6 +45,6 @@ class MainService:
                     f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] No audio file on this subclip")
                 clip_length = 1
                 pass
-                return json_result, time_end - time_start, clip_length
+                return 0, json_result, time_end - time_start, clip_length
 
 

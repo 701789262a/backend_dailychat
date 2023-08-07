@@ -126,7 +126,12 @@ def dedicated_thread():
         mainapi = MainService(translator, identificator, middle_to_backend)
 
         # Actual task is started
-        result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
+        status, result, time_took, clip_length_seconds = mainapi.main_job(1, clip_hash, timestamp_at_start)
+
+        # If error occurred that required restart, refills job
+        if status !=0:
+            local_job_queue.put([clip_hash,timestamp_at_start])
+            continue
 
         # When job is done, statistics are printed and node is unbusied
         print(result)
