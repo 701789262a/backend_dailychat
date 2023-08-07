@@ -223,10 +223,11 @@ class VoiceIdentification:
                     print(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
                         f"Error opening {path}{worker_id}, probably file not loaded yet - retrying; thread {threading.get_native_id()}")
+                    self.instance_broken_101 = True
                 else:
                     print(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-                        f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance broken; "
+                        f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance will break; "
                         f"thread {threading.get_native_id()}")
 
 
@@ -253,7 +254,6 @@ class VoiceIdentification:
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
                 f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance will break; "
                 f"thread {threading.get_native_id()}")
-            self.instance_broken_101 = True
             pass
 
     def get_subclip_from_sftp(self, registered_speaker) -> str:
