@@ -1,5 +1,6 @@
 import datetime
 import yaml
+import speechmetrics
 
 
 class AppFunction:
@@ -28,6 +29,9 @@ class AppFunction:
         self.middle_to_backend = mtb
         self.translator = translator
         self.identificator = identificator
+
+        # Loading model to calculate probability of subclip containing speech
+        self.metric = speechmetrics.load('absolute', 20)
 
     # medium cpu 65s win diar
     # small cpu 31s win diar
@@ -83,15 +87,25 @@ class AppFunction:
         # Interating thorugh every subclip to identify who's speaking in each subclip.
         for subclip in subclips_name:
 
+            # Generating speech probability for subclip
+            scores = self.metric('tmp_audio_files_save/' + subclip[0] + '.wav')
+            MOSNet_score = 100 - (scores['mosnet'] * 20)
+            SRMR_score = 100 - (scores['srmr'] * 100)
+
             # Identifying subclip speaker if no_speech_prob is lower than threshold
             print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
-                  f"No speech prob: {subclip[1]['no_speech_prob']}")
+                  f"No speech prob (lower is better):\n"
+                  f" * \t\t Whisper included: {subclip[1]['no_speech_prob']}\n"
+                  f" * \t\t Speechmetrics MOSNet: {MOSNet_score}\n"
+                  f" * \t\t Speechmetrics SRMR: {SRMR_score}")
 
-            if subclip[1]['no_speech_prob'] < self.config['diarization']['no_speech_prob']:
+            avg_speech_score = (subclip[1]['no_speech_prob'] + MOSNet_score + SRMR_score) / 3
+
+            if avg_speech_score < self.config['diarization']['no_speech_prob']:
                 identification = self.identificator.identify_speaker(subclip, sender_user_id, timestamp_at_start)
 
                 if identification[0] != 0:
-                    return identification[0] ,''
+                    return identification[0], ''
 
                 # Appending identification and subclip to dict
                 analyzed_subclip[speaker_clip]['subclips'].append([subclip, identification])
