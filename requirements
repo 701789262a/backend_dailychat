@@ -13,3 +13,4 @@ firebase_admin
 websockets
 waitress
 pysftp
+git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics
