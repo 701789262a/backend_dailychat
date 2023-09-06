@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+import traceback
 from datetime import datetime
 from threading import Thread, Semaphore
 import queue
@@ -223,6 +224,7 @@ class VoiceIdentification:
                     print(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
                         f"Error opening {path}{worker_id}, probably file not loaded yet - retrying; thread {threading.get_native_id()}")
+                    print(traceback.print_exc())
                 else:
                     print(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
@@ -230,7 +232,7 @@ class VoiceIdentification:
                         f"thread {threading.get_native_id()}")
 
                     self.instance_broken_101 = True
-
+                    return
 
         try:
             os.remove(f"{path}{worker_id}")
