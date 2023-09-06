@@ -13,4 +13,6 @@ firebase_admin
 websockets
 waitress
 pysftp
+netaddr
+rich
 git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics

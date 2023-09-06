@@ -150,7 +150,7 @@ class VoiceIdentification:
 
         # Check if there was a problem during batch work (typically couldn't fetch from SFTP)
         if self.instance_broken_101:
-            return 101
+            return [101]
 
         # Creating a pandas Series with average score for every speaker
         ordered_result_dataframe = self.local_analysis_dataframe.groupby(
@@ -223,12 +223,13 @@ class VoiceIdentification:
                     print(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
                         f"Error opening {path}{worker_id}, probably file not loaded yet - retrying; thread {threading.get_native_id()}")
-                    self.instance_broken_101 = True
                 else:
                     print(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]}] "
                         f"Error opening {path}{worker_id}, probably corrupted file or file not loaded yet - instance will break; "
                         f"thread {threading.get_native_id()}")
+
+                    self.instance_broken_101 = True
 
 
         try:

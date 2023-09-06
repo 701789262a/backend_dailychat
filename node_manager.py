@@ -189,5 +189,5 @@ def unbusy():
 if __name__ == "__main__":
     # Loading config for running app on chosen IP:port
     config = yaml.unsafe_load(open("config_node_manager.yaml", 'r').read())
-
+    print(f" * Visit {config['httpserver']['ip']}:{config['httpserver']['port']}/start to start node manager")
     app.run(debug=False, host=config['httpserver']['ip'], port=config['httpserver']['port'], use_reloader=False)
